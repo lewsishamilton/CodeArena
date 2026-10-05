@@ -543,6 +543,29 @@ dialog.modal[open] { animation: modal-in 0.2s var(--ease); }
 .google-btn:hover { background: #fff; }
 .signed-in { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--r); margin-top: 24px; }
 .signed-in .avatar { width: 36px; height: 36px; }
+
+/* Student Roll Search & Auto-details */
+.roll-input-box { position: relative; display: flex; align-items: center; margin-top: 20px; }
+.roll-input-box .input { font-size: 17px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 14px 18px 14px 44px; height: 52px; border-radius: var(--r); border: 1.5px solid var(--border-strong); background: var(--bg-2); width: 100%; }
+.roll-input-box .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--bg); }
+.roll-input-box .roll-icon { position: absolute; left: 16px; color: var(--muted); pointer-events: none; display: flex; align-items: center; }
+.roll-samples { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.roll-samples span { font-size: 12.5px; color: var(--muted); }
+.sample-chip { background: var(--bg-2); border: 1px solid var(--border); color: var(--text-2); font-size: 12px; font-family: var(--font-mono, monospace); padding: 4px 10px; border-radius: 999px; cursor: pointer; transition: all 0.15s ease; }
+.sample-chip:hover { background: var(--elev); border-color: var(--accent); color: var(--text); transform: translateY(-1px); }
+.student-lookup-empty { margin-top: 24px; padding: 36px 20px; border: 1.5px dashed var(--border-strong); border-radius: var(--r); text-align: center; background: rgba(255, 255, 255, 0.01); color: var(--muted); }
+.student-lookup-empty i { font-size: 28px; margin-bottom: 8px; display: inline-block; color: var(--muted); }
+.student-profile-card { margin-top: 24px; border: 1px solid var(--accent-line); border-radius: var(--r-lg); background: var(--bg-2); padding: 24px; animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25); }
+.student-profile-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.student-verified-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line); padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.student-details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
+.detail-item { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; transition: border-color 0.15s; }
+.detail-item:hover { border-color: var(--border-strong); }
+.detail-item .label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.detail-item .val { display: block; font-size: 15px; font-weight: 600; color: var(--text); word-break: break-word; }
+.detail-item.highlight-accent .val { color: var(--accent); }
+.student-meta-strip { display: flex; align-items: center; gap: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); font-size: 13px; color: var(--text-2); flex-wrap: wrap; }
+@media (max-width: 600px) { .student-details-grid { grid-template-columns: 1fr; } }
 .order-summary { position: sticky; top: calc(var(--nav-h) + 24px); }
 .order-summary .line { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14px; color: var(--text-2); }
 .order-summary .line.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 14px; color: var(--text); font-weight: 600; font-size: 16px; }

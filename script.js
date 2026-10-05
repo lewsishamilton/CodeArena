@@ -500,12 +500,8 @@ function openLogin() {
 }
 
 /* =========================================================================
-   PAGE: REGISTRATION (5 steps)
+   PAGE: REGISTRATION (Streamlined: Roll lookup -> Payment -> Ticket Issued)
    ========================================================================= */
-const GOOGLE_ACCOUNTS = [
-  { name: 'Ananya Reddy', email: 'ananya.reddy@gmail.com' },
-  { name: 'Rohan Varma', email: 'rohan.varma21@gmail.com' }
-];
 const FIELD_RULES = {
   name: [v => /^[A-Za-z][A-Za-z .'-]{2,59}$/.test(v), 'Enter your full name (letters only, at least 3 characters).'],
   email: [v => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v), 'Enter a valid email address.'],
@@ -513,17 +509,113 @@ const FIELD_RULES = {
   dept: [v => !!v, 'Select your department.'],
   course: [v => !!v, 'Select your course.'],
   year: [v => !!v, 'Select your year of study.'],
-  roll: [v => /^[A-Za-z0-9-]{6,15}$/.test(v), 'Roll number should be 6–15 letters or digits.'],
+  roll: [v => /^[A-Za-z0-9-]{4,15}$/.test(v), 'Roll number should be 4–15 letters or digits.'],
   phone: [v => /^[6-9]\d{9}$/.test(v.replace(/[\s-]/g, '').replace(/^(\+91|0)/, '')), 'Enter a valid 10-digit Indian mobile number.']
 };
 
-function initRegister() {
-  const state = { step: 1, account: null, method: 'UPI', outcome: 'success' };
-  const form = $('#details-form');
+function lookupStudentByRoll(rawRoll) {
+  if (!rawRoll) return null;
+  const roll = rawRoll.trim().toUpperCase();
+  if (roll.length < 4) return null;
 
-  // Populate dropdown options from the same lists the mock data uses
-  $('#f-dept').insertAdjacentHTML('beforeend', DEPTS.map(d => `<option>${esc(d)}</option>`).join(''));
-  $('#college-list').innerHTML = COLLEGES.map(c => `<option value="${esc(c)}">`).join('');
+  // 1. Direct check against DEMO_STUDENT
+  if (DEMO_STUDENT && DEMO_STUDENT.roll && DEMO_STUDENT.roll.toUpperCase() === roll) {
+    return {
+      name: DEMO_STUDENT.name,
+      course: DEMO_STUDENT.course || 'B.Tech',
+      dept: DEMO_STUDENT.dept || 'CSE (AI & ML)',
+      branch: DEMO_STUDENT.dept || 'CSE (AI & ML)',
+      email: DEMO_STUDENT.email,
+      gmail: DEMO_STUDENT.email,
+      college: DEMO_STUDENT.college || 'MLR Institute of Technology',
+      year: DEMO_STUDENT.year || '3',
+      roll: DEMO_STUDENT.roll,
+      phone: DEMO_STUDENT.phone || '9849012345'
+    };
+  }
+
+  // 2. Known curated sample profiles
+  const KNOWN_STUDENTS = {
+    '23R21A6612': { name: 'Ananya Reddy', course: 'B.Tech', dept: 'CSE (AI & ML)', email: 'ananya.reddy@gmail.com', college: 'MLR Institute of Technology', year: '3', phone: '9849012345' },
+    '22R21A0542': { name: 'Rohan Varma', course: 'B.Tech', dept: 'CSE', email: 'rohan.varma21@gmail.com', college: 'MLR Institute of Technology', year: '4', phone: '9876543210' },
+    '23R21A0501': { name: 'Aarav Sharma', course: 'B.Tech', dept: 'CSE', email: 'aarav.sharma23@gmail.com', college: 'MLR Institute of Technology', year: '3', phone: '9812345678' },
+    '24R21A0410': { name: 'Sneha Patel', course: 'B.Tech', dept: 'ECE', email: 'sneha.patel24@gmail.com', college: 'MLR Institute of Technology', year: '2', phone: '9823456789' },
+    '23R21A1205': { name: 'Karthik Rao', course: 'B.Tech', dept: 'IT', email: 'karthik.rao23@gmail.com', college: 'MLR Institute of Technology', year: '3', phone: '9834567890' }
+  };
+  if (KNOWN_STUDENTS[roll]) {
+    const s = KNOWN_STUDENTS[roll];
+    return { ...s, branch: s.dept, gmail: s.email, roll };
+  }
+
+  // 3. Search in participants list
+  const found = participants().find(p => p.roll && p.roll.toUpperCase() === roll);
+  if (found) {
+    return {
+      name: found.name,
+      course: found.course || 'B.Tech',
+      dept: found.dept || 'CSE',
+      branch: found.dept || 'CSE',
+      email: found.email,
+      gmail: found.email,
+      college: found.college || 'MLR Institute of Technology',
+      year: found.year || '3',
+      roll: found.roll,
+      phone: found.phone || '9876543210'
+    };
+  }
+
+  // 4. Deterministic generator for ANY typed roll number
+  let hash = 0;
+  for (let i = 0; i < roll.length; i++) {
+    hash = ((hash << 5) - hash) + roll.charCodeAt(i);
+    hash |= 0;
+  }
+  const absHash = Math.abs(hash);
+
+  // Decode branch code from roll
+  let dept = 'CSE';
+  if (/A05|05/i.test(roll)) dept = 'CSE';
+  else if (/A66|66/i.test(roll)) dept = 'CSE (AI & ML)';
+  else if (/A67|67/i.test(roll)) dept = 'CSE (Data Science)';
+  else if (/A12|12/i.test(roll)) dept = 'IT';
+  else if (/A04|04/i.test(roll)) dept = 'ECE';
+  else if (/A02|02/i.test(roll)) dept = 'EEE';
+  else if (/A03|03/i.test(roll)) dept = 'Mechanical';
+  else dept = DEPTS[absHash % DEPTS.length];
+
+  // Decode year from leading two digits
+  let year = '3';
+  const yearMatch = roll.match(/^(\d{2})/);
+  if (yearMatch) {
+    const yNum = parseInt(yearMatch[1], 10);
+    const calculatedYear = 26 - yNum;
+    if (calculatedYear >= 1 && calculatedYear <= 4) year = String(calculatedYear);
+  }
+
+  const course = /MCA/i.test(roll) ? 'MCA' : /MTECH|MT/i.test(roll) ? 'M.Tech' : 'B.Tech';
+  const firstName = FIRST[absHash % FIRST.length];
+  const lastName = LAST[(absHash >> 3) % LAST.length];
+  const fullName = `${firstName} ${lastName}`;
+  const gmail = `${firstName.toLowerCase().replace(/\s+/g, '')}.${lastName.toLowerCase()}${absHash % 89 + 10}@gmail.com`;
+  const college = 'MLR Institute of Technology';
+  const phone = '9' + String(absHash).padStart(9, '0').slice(-9);
+
+  return {
+    name: fullName,
+    course,
+    dept,
+    branch: dept,
+    email: gmail,
+    gmail,
+    college,
+    year,
+    roll,
+    phone
+  };
+}
+
+function initRegister() {
+  const state = { step: 1, currentStudent: null, method: 'UPI', outcome: 'success' };
 
   const go = step => {
     state.step = step;
@@ -532,128 +624,189 @@ function initRegister() {
       li.classList.toggle('active', i + 1 === step);
       li.classList.toggle('done', i + 1 < step);
     });
-    $('.order-summary').hidden = step === 5;
+    const orderSum = $('.order-summary');
+    if (orderSum) orderSum.hidden = step === 3;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Already registered in this browser → jump straight to the confirmation
+  // If already registered in this browser, show confirmation directly
   const existing = store.get('student');
-  if (existing) { showSuccess(existing, true); go(5); }
-  else go(1);
+  if (existing) {
+    showSuccess(existing, true);
+    go(3);
+  } else {
+    go(1);
+  }
 
-  /* Step 1 — Google sign-in simulation */
-  $('#google-btn').addEventListener('click', () => modal({
-    title: 'Choose an account',
-    confirm: null, cancel: null,
-    body: `<p>Simulated Google account chooser. Nothing leaves this browser.</p>
-      <div class="choice-list">
-        ${GOOGLE_ACCOUNTS.map((a, i) => `<button class="choice" data-acc="${i}"><span class="avatar">${initials(a.name)}</span><span><strong>${a.name}</strong><span>${a.email}</span></span></button>`).join('')}
-      </div>`,
-    onOpen: dlg => $$('[data-acc]', dlg).forEach(b => b.onclick = () => {
-      dlg.close();
-      state.account = GOOGLE_ACCOUNTS[b.dataset.acc];
-      $('#signed-in').hidden = false;
-      $('#signed-in').innerHTML = `<span class="avatar">${initials(state.account.name)}</span>
-        <div><strong>${esc(state.account.name)}</strong><div class="muted" style="font-size:13px">${esc(state.account.email)}</div></div>
-        <span class="badge badge-success" style="margin-left:auto">Verified</span>`;
-      $('#step1-next').disabled = false;
-      form.name.value ||= state.account.name;
-      form.email.value = state.account.email;
-      toast(`Signed in as ${state.account.email}`);
-    })
-  }));
-  $('#step1-next').addEventListener('click', () => go(2));
+  const rollInput = $('#reg-roll');
+  const studentCard = $('#student-card');
+  const studentEmpty = $('#student-empty');
+  const nextBtn = $('#step1-next');
 
-  /* Step 2 — student details with validation */
-  const validateField = input => {
-    const [test, msg] = FIELD_RULES[input.name];
-    const ok = test(input.value.trim());
-    const field = input.closest('.field');
-    field.classList.toggle('invalid', !ok);
-    $('.error', field).textContent = msg;
-    input.setAttribute('aria-invalid', !ok);
-    return ok;
-  };
-  $$('input, select', form).forEach(el => {
-    el.addEventListener('blur', () => el.value && validateField(el));
-    el.addEventListener('input', () => el.closest('.field').classList.contains('invalid') && validateField(el));
-  });
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const results = $$('input, select', form).map(validateField);
-    if (results.includes(false)) {
-      $('.field.invalid input, .field.invalid select', form)?.focus();
-      toast('Please fix the highlighted fields', 'error');
+  function renderStudent(student) {
+    if (!student) {
+      state.currentStudent = null;
+      if (studentCard) studentCard.hidden = true;
+      if (studentEmpty) studentEmpty.hidden = false;
+      if (nextBtn) nextBtn.disabled = true;
       return;
     }
-    const d = Object.fromEntries(new FormData(form));
-    d.phone = d.phone.replace(/[\s-]/g, '').replace(/^(\+91|0)/, '');
-    state.details = d;
-    renderReview();
-    go(3);
-  });
-  $('#step2-back').addEventListener('click', () => go(1));
+    state.currentStudent = student;
+    if (studentEmpty) studentEmpty.hidden = true;
+    if (studentCard) studentCard.hidden = false;
 
-  /* Step 3 — review */
-  function renderReview() {
-    const d = state.details;
-    $('#review-list').innerHTML = [
-      ['Full name', d.name], ['Email', d.email], ['College', d.college], ['Department', d.dept],
-      ['Course', d.course], ['Year', `Year ${d.year}`], ['Roll number', d.roll.toUpperCase()], ['Phone', `+91 ${d.phone}`]
-    ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+    // Display fields: Name, Course, Branch, Gmail
+    const dName = $('#disp-name'); if (dName) dName.textContent = student.name;
+    const dCourse = $('#disp-course'); if (dCourse) dCourse.textContent = student.course;
+    const dBranch = $('#disp-branch'); if (dBranch) dBranch.textContent = student.branch || student.dept;
+    const dGmail = $('#disp-gmail'); if (dGmail) dGmail.textContent = student.gmail || student.email;
+    const dCollege = $('#disp-college'); if (dCollege) dCollege.textContent = student.college;
+    const dYear = $('#disp-year'); if (dYear) dYear.textContent = `${student.year}${student.year === '1' ? 'st' : student.year === '2' ? 'nd' : student.year === '3' ? 'rd' : 'th'} Year`;
+
+    const hName = $('#header-student-name'); if (hName) hName.textContent = student.name;
+    const hRoll = $('#header-student-roll'); if (hRoll) hRoll.textContent = student.roll;
+    const avatar = $('#student-avatar');
+    if (avatar) avatar.textContent = initials(student.name);
+
+    if (nextBtn) nextBtn.disabled = false;
   }
-  $('#step3-back').addEventListener('click', () => go(2));
-  $('#edit-details').addEventListener('click', () => go(2));
-  $('#step3-next').addEventListener('click', () => {
-    if (!$('#agree').checked) { toast('Please accept the competition rules to continue', 'warn'); $('#agree').focus(); return; }
-    go(4);
+
+  if (rollInput) {
+    const handleInput = () => {
+      const val = rollInput.value.trim().toUpperCase();
+      rollInput.value = val;
+      if (val.length >= 4) {
+        const student = lookupStudentByRoll(val);
+        renderStudent(student);
+      } else {
+        renderStudent(null);
+      }
+    };
+    rollInput.addEventListener('input', handleInput);
+    rollInput.addEventListener('paste', () => setTimeout(handleInput, 10));
+    rollInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && nextBtn && !nextBtn.disabled) {
+        e.preventDefault();
+        nextBtn.click();
+      }
+    });
+  }
+
+  // Quick fill chips
+  $$('.sample-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const r = chip.dataset.sample;
+      if (rollInput) {
+        rollInput.value = r;
+        const student = lookupStudentByRoll(r);
+        renderStudent(student);
+        toast(`Loaded details for ${student.name}`);
+      }
+    });
   });
 
-  /* Step 4 — mock payment */
+  // Proceed to Step 2 (Payment page)
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (!state.currentStudent) {
+        toast('Please enter a valid roll number first', 'warn');
+        return;
+      }
+      const agree = $('#agree');
+      if (agree && !agree.checked) {
+        toast('Please agree to the competition rules to continue', 'warn');
+        agree.focus();
+        return;
+      }
+      // Populate student info in payment header
+      const payName = $('#pay-student-name'); if (payName) payName.textContent = state.currentStudent.name;
+      const payRoll = $('#pay-student-roll'); if (payRoll) payRoll.textContent = state.currentStudent.roll;
+      go(2);
+    });
+  }
+
+  // Step 2 payment back button
+  const step2Back = $('#step2-back');
+  if (step2Back) step2Back.addEventListener('click', () => go(1));
+
+  // Payment methods
   $$('.pay-method').forEach(btn => btn.addEventListener('click', () => {
     state.method = btn.dataset.method;
-    $$('.pay-method').forEach(b => { b.classList.toggle('active', b === btn); b.setAttribute('aria-pressed', b === btn); });
+    $$('.pay-method').forEach(b => {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-pressed', b === btn);
+    });
     $$('[data-pay-panel]').forEach(p => p.hidden = p.dataset.payPanel !== state.method);
   }));
+
+  // Outcome simulator
   $$('#outcome button').forEach(btn => btn.addEventListener('click', () => {
     state.outcome = btn.dataset.outcome;
     $$('#outcome button').forEach(b => b.classList.toggle('active', b === btn));
   }));
-  $('#upi-qr').innerHTML = qrSvg('upi-codearena-' + CONFIG.fee, 25);
-  $('#step4-back').addEventListener('click', () => go(3));
+
+  const qrEl = $('#upi-qr');
+  if (qrEl) qrEl.innerHTML = qrSvg('upi-codearena-' + CONFIG.fee, 25);
 
   const payView = which => $$('[data-pay-view]').forEach(v => v.hidden = v.dataset.payView !== which);
-  $('#pay-btn').addEventListener('click', () => {
-    payView('processing');
-    setTimeout(() => {
-      if (state.outcome === 'failure') { payView('failed'); toast('Payment failed — no money was deducted (mock)', 'error'); return; }
-      const all = participants();
-      const r = rng(Date.now());
-      const student = {
-        ...state.details, roll: state.details.roll.toUpperCase(),
-        regId: `CA26-${pad(all.length + 1, 4)}`, ticketId: 'TK-' + randCode(r, 6),
-        payment: 'paid', method: state.method, txn: 'pay_' + randCode(r, 12), paidAt: new Date().toISOString()
-      };
-      store.set('student', student);
-      showSuccess(student);
-      go(5);
-      toast('Payment successful — ticket generated');
-    }, 1800);
-  });
-  $('#retry-btn').addEventListener('click', () => payView('form'));
+
+  const payBtn = $('#pay-btn');
+  if (payBtn) {
+    payBtn.addEventListener('click', () => {
+      payView('processing');
+      setTimeout(() => {
+        if (state.outcome === 'failure') {
+          payView('failed');
+          toast('Payment failed — no money was deducted (mock)', 'error');
+          return;
+        }
+        const all = participants();
+        const r = rng(Date.now());
+        const student = {
+          ...state.currentStudent,
+          roll: state.currentStudent.roll.toUpperCase(),
+          regId: `CA26-${pad(all.length + 1, 4)}`,
+          ticketId: 'TK-' + randCode(r, 6),
+          payment: 'paid',
+          method: state.method,
+          txn: 'pay_' + randCode(r, 12),
+          paidAt: new Date().toISOString()
+        };
+        store.set('student', student);
+        showSuccess(student);
+        payView('form');
+        go(3);
+        toast('Payment successful — ticket generated');
+      }, 1500);
+    });
+  }
+
+  const retryBtn = $('#retry-btn');
+  if (retryBtn) retryBtn.addEventListener('click', () => payView('form'));
 
   function showSuccess(s, returning = false) {
-    $('#success-title').textContent = returning ? `You're already registered, ${s.name.split(' ')[0]}` : `You're in, ${s.name.split(' ')[0]}.`;
-    $('#success-reg').textContent = s.regId;
-    $('#success-ticket').textContent = s.ticketId;
-    $('#success-mail').textContent = s.email;
+    const title = $('#success-title');
+    if (title) title.textContent = returning ? `You're already registered, ${s.name.split(' ')[0]}` : `You're in, ${s.name.split(' ')[0]}.`;
+    const regEl = $('#success-reg');
+    if (regEl) regEl.textContent = s.regId;
+    const ticketEl = $('#success-ticket');
+    if (ticketEl) ticketEl.textContent = s.ticketId;
+    const mailEl = $('#success-mail');
+    if (mailEl) mailEl.textContent = s.gmail || s.email;
   }
-  $('#new-reg').addEventListener('click', () => modal({
-    title: 'Start a new registration?',
-    body: '<p>The registration saved in this browser will be replaced. Use this to demo the flow again.</p>',
-    confirm: 'Start over', tone: 'danger',
-    onConfirm: () => { store.remove('student'); location.reload(); }
-  }));
+
+  const newRegBtn = $('#new-reg');
+  if (newRegBtn) {
+    newRegBtn.addEventListener('click', () => modal({
+      title: 'Register another student?',
+      body: '<p>The registration saved in this browser will be reset so you can enter a new roll number.</p>',
+      confirm: 'Start new registration', tone: 'danger',
+      onConfirm: () => {
+        store.remove('student');
+        location.reload();
+      }
+    }));
+  }
 }
 
 /* =========================================================================

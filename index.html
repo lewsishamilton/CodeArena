@@ -295,76 +295,106 @@
 
   <div class="reg-layout">
     <ol class="stepper" aria-label="Registration steps">
-      <li><span class="n">1</span><div><strong>Sign in</strong><small>Google account</small></div></li>
-      <li><span class="n">2</span><div><strong>Details</strong><small>College &amp; contact</small></div></li>
-      <li><span class="n">3</span><div><strong>Review</strong><small>Confirm your info</small></div></li>
-      <li><span class="n">4</span><div><strong>Payment</strong><small>Registration fee</small></div></li>
-      <li><span class="n">5</span><div><strong>Done</strong><small>Ticket issued</small></div></li>
+      <li><span class="n">1</span><div><strong>Student Details</strong><small>Enter roll number</small></div></li>
+      <li><span class="n">2</span><div><strong>Payment</strong><small>Registration fee</small></div></li>
+      <li><span class="n">3</span><div><strong>Confirmed</strong><small>Ticket issued</small></div></li>
     </ol>
 
     <div>
-      <!-- STEP 1: Google sign-in simulation -->
+      <!-- STEP 1: Roll number & auto details -->
       <section class="card reg-panel" data-step="1" hidden>
-        <h2>Sign in to continue</h2>
-        <p class="lead">We use your Google account to verify your email and keep your ticket safe. Nothing is posted on your behalf.</p>
-        <div style="margin-top:28px">
-          <button class="google-btn" id="google-btn" type="button">
-            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.5 5.8c4.4-4 6.8-10 6.8-17.2z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6a24 24 0 0 0 0 21.4z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>
-            Continue with Google
-          </button>
-          <div id="signed-in" class="signed-in" hidden></div>
-          <p class="muted" style="font-size:13px;margin-top:14px">Simulated sign-in for this prototype — no Google request is made.</p>
+        <div class="eyebrow" style="margin-bottom:8px"><b>Step 1</b>Quick Verification</div>
+        <h2>Enter your Roll Number</h2>
+        <p class="lead">Enter your college roll number only. Your verified details (Name, Course, Branch, and Gmail) will be fetched automatically.</p>
+
+        <div style="margin-top:24px">
+          <label for="reg-roll" style="display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:8px">College Roll Number</label>
+          <div class="roll-input-box">
+            <span class="roll-icon"><i data-icon="search"></i></span>
+            <input class="input" id="reg-roll" name="roll" autocomplete="off" placeholder="e.g. 23R21A6612" style="text-transform:uppercase" autofocus>
+          </div>
+          <div class="roll-samples">
+            <span>Quick fill:</span>
+            <button type="button" class="sample-chip" data-sample="23R21A6612">23R21A6612</button>
+            <button type="button" class="sample-chip" data-sample="22R21A0542">22R21A0542</button>
+            <button type="button" class="sample-chip" data-sample="23R21A0501">23R21A0501</button>
+            <button type="button" class="sample-chip" data-sample="24R21A0410">24R21A0410</button>
+          </div>
         </div>
+
+        <!-- Empty state placeholder -->
+        <div id="student-empty" class="student-lookup-empty">
+          <div style="font-size:28px;margin-bottom:8px">📋</div>
+          <p style="margin:4px 0 0;font-weight:600;color:var(--text)">Awaiting Roll Number</p>
+          <small style="color:var(--muted)">Enter your roll number above to display your Name, Course, Branch, and Gmail.</small>
+        </div>
+
+        <!-- Student profile card (revealed when roll number is entered) -->
+        <div id="student-card" class="student-profile-card" hidden>
+          <div class="student-profile-head">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="avatar" id="student-avatar" style="width:42px;height:42px;font-size:15px;background:var(--accent);color:var(--accent-ink);font-weight:700">AR</span>
+              <div>
+                <div style="font-weight:700;font-size:17px;color:var(--text)" id="header-student-name">Ananya Reddy</div>
+                <div class="muted" style="font-size:13px;font-family:var(--font-mono, monospace)" id="header-student-roll">23R21A6612</div>
+              </div>
+            </div>
+            <span class="student-verified-badge"><i data-icon="check"></i> Verified Profile</span>
+          </div>
+
+          <div class="student-details-grid">
+            <div class="detail-item">
+              <span class="label">Name</span>
+              <strong class="val" id="disp-name">—</strong>
+            </div>
+            <div class="detail-item">
+              <span class="label">Course</span>
+              <strong class="val" id="disp-course">—</strong>
+            </div>
+            <div class="detail-item">
+              <span class="label">Branch</span>
+              <strong class="val" id="disp-branch">—</strong>
+            </div>
+            <div class="detail-item">
+              <span class="label">Gmail</span>
+              <strong class="val highlight-accent" id="disp-gmail">—</strong>
+            </div>
+          </div>
+
+          <div class="student-meta-strip">
+            <span><strong>College:</strong> <span id="disp-college">MLR Institute of Technology</span></span>
+            <span><strong>Year:</strong> <span id="disp-year">3rd Year</span></span>
+            <span style="margin-left:auto"><i data-icon="shield"></i> Official Campus Record</span>
+          </div>
+
+          <label style="display:flex;gap:10px;align-items:flex-start;margin-top:20px;font-size:13.5px;color:var(--text-2);cursor:pointer">
+            <input type="checkbox" id="agree" checked style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px">
+            <span>I confirm that these details belong to me and I agree to the <a href="?p=index#rules" target="_blank" style="color:var(--text);text-decoration:underline">competition rules</a>.</span>
+          </label>
+        </div>
+
         <div class="reg-actions">
-          <a class="btn btn-ghost" href="?p=index">Back to event</a>
-          <button class="btn btn-primary" id="step1-next" disabled>Continue <i data-icon="arrow"></i></button>
+          <a class="btn btn-ghost" href="?p=index">Cancel</a>
+          <button class="btn btn-primary" id="step1-next" disabled>Continue to Payment <i data-icon="arrow"></i></button>
         </div>
       </section>
 
-      <!-- STEP 2: Student details -->
+      <!-- STEP 2: Mock payment -->
       <section class="card reg-panel" data-step="2" hidden>
-        <h2>Student details</h2>
-        <p class="lead">These appear on your ticket and certificate, so use your name as it reads on your college ID.</p>
-        <form id="details-form" novalidate style="margin-top:28px">
-          <div class="form-grid">
-            <div class="field span-2"><label for="f-name">Full name</label><input class="input" id="f-name" name="name" autocomplete="name" placeholder="As on your college ID"><span class="error"></span></div>
-            <div class="field"><label for="f-email">Email</label><input class="input" id="f-email" name="email" type="email" autocomplete="email" placeholder="you@example.com"><span class="error"></span></div>
-            <div class="field"><label for="f-phone">Phone</label><input class="input" id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile number"><span class="error"></span></div>
-            <div class="field span-2"><label for="f-college">College</label><input class="input" id="f-college" name="college" list="college-list" placeholder="Start typing your college"><datalist id="college-list"></datalist><span class="error"></span></div>
-            <div class="field"><label for="f-dept">Department</label><select class="select" id="f-dept" name="dept"><option value="">Select department</option></select><span class="error"></span></div>
-            <div class="field"><label for="f-course">Course</label><select class="select" id="f-course" name="course"><option value="">Select course</option><option>B.Tech</option><option>B.E.</option><option>BCA</option><option>B.Sc</option><option>M.Tech</option><option>MCA</option></select><span class="error"></span></div>
-            <div class="field"><label for="f-year">Year</label><select class="select" id="f-year" name="year"><option value="">Select year</option><option value="1">1st year</option><option value="2">2nd year</option><option value="3">3rd year</option><option value="4">4th year</option></select><span class="error"></span></div>
-            <div class="field"><label for="f-roll">Roll number</label><input class="input" id="f-roll" name="roll" autocomplete="off" placeholder="e.g. 23R21A0542" style="text-transform:uppercase"><span class="error"></span></div>
-          </div>
-          <div class="reg-actions">
-            <button class="btn btn-ghost" type="button" id="step2-back">Back</button>
-            <button class="btn btn-primary" type="submit">Review details <i data-icon="arrow"></i></button>
-          </div>
-        </form>
-      </section>
-
-      <!-- STEP 3: Review -->
-      <section class="card reg-panel" data-step="3" hidden>
-        <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
-          <div><h2>Review your registration</h2><p class="lead">Check everything once — details are locked after payment.</p></div>
-          <button class="btn btn-secondary btn-sm" id="edit-details"><i data-icon="edit"></i> Edit</button>
-        </div>
-        <dl class="kv" id="review-list" style="margin-top:28px;padding:20px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg-2)"></dl>
-        <label style="display:flex;gap:10px;align-items:flex-start;margin-top:20px;font-size:14px;color:var(--text-2);cursor:pointer">
-          <input type="checkbox" id="agree" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px">
-          <span>I have read the <a href="?p=index#rules" target="_blank" style="color:var(--text);text-decoration:underline">competition rules</a> and confirm the details above are correct.</span>
-        </label>
-        <div class="reg-actions">
-          <button class="btn btn-ghost" id="step3-back">Back</button>
-          <button class="btn btn-primary" id="step3-next">Continue to payment <i data-icon="arrow"></i></button>
-        </div>
-      </section>
-
-      <!-- STEP 4: Mock payment -->
-      <section class="card reg-panel" data-step="4" hidden>
         <div data-pay-view="form">
-          <h2>Payment</h2>
-          <p class="lead">Choose a payment method. This is a simulation — no money moves and no payment provider is contacted.</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+            <div>
+              <h2>Payment</h2>
+              <p class="lead">Select your payment method to complete registration.</p>
+            </div>
+            <span class="badge badge-info plain">Prototype Demo</span>
+          </div>
+
+          <div style="margin-top:16px;padding:12px 16px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);font-size:13.5px;color:var(--text-2);display:flex;justify-content:space-between;align-items:center">
+            <span>Registering: <strong id="pay-student-name" style="color:var(--text)">—</strong> (<span id="pay-student-roll" style="font-family:var(--font-mono, monospace)">—</span>)</span>
+            <span class="badge badge-success">Verified</span>
+          </div>
+
           <div class="pay-methods" role="group" aria-label="Payment method">
             <button class="pay-method active" data-method="UPI" aria-pressed="true"><strong>UPI</strong><span>GPay, PhonePe, Paytm</span></button>
             <button class="pay-method" data-method="Card" aria-pressed="false"><strong>Card</strong><span>Debit or credit</span></button>
@@ -396,7 +426,7 @@
             </div>
           </div>
           <div class="reg-actions">
-            <button class="btn btn-ghost" id="step4-back">Back</button>
+            <button class="btn btn-ghost" id="step2-back">Back</button>
             <button class="btn btn-primary" id="pay-btn">Pay <span data-cfg="fee">₹199</span></button>
           </div>
         </div>
@@ -421,8 +451,8 @@
         </div>
       </section>
 
-      <!-- STEP 5: Success -->
-      <section class="card reg-panel" data-step="5" hidden>
+      <!-- STEP 3: Success -->
+      <section class="card reg-panel" data-step="3" hidden>
         <div class="state-block">
           <div class="state-icon ok"><i data-icon="check"></i></div>
           <h2 id="success-title">You're in.</h2>
@@ -435,7 +465,7 @@
         <div class="reg-actions" style="justify-content:center;flex-wrap:wrap">
           <a class="btn btn-primary" href="?p=ticket"><i data-icon="ticket"></i> View ticket</a>
           <a class="btn btn-secondary" href="?p=dashboard">Go to dashboard</a>
-          <button class="btn btn-ghost" id="new-reg">Start a new registration</button>
+          <button class="btn btn-ghost" id="new-reg">Register another student</button>
         </div>
       </section>
     </div>
