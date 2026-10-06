@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Must match ADMIN_EMAIL in functions/src/index.ts and src/design/backend.js
+    function isAdmin() { return request.auth != null && request.auth.token.email == 'admin@codearena.local'; }
+    function signedIn() { return request.auth != null; }
+    function comp() { return get(/databases/$(database)/documents/config/competition).data; }
+    function contestOpen() { return exists(/databases/$(database)/documents/config/competition) && comp().status in ['live', 'ended', 'published']; }
+    function isPaid() {
+      return signedIn() && exists(/databases/$(database)/documents/registrations/$(request.auth.uid))
+        && get(/databases/$(database)/documents/registrations/$(request.auth.uid)).data.payment == 'paid';
+    }
+
+    // Event settings, competition state and seat counter: public read, organiser write.
+    // The seat counter (config/stats) is only changed by the payment server (api/ on Vercel, Admin SDK).
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() && docId != 'stats';
+    }
+    // Re-registration after the organiser deletes a participant: a student may record their own login version
+    match /config/roll_versions {
+      allow write: if signedIn() && request.resource.data.diff(resource == null ? {} : resource.data).affectedKeys()
+        .hasOnly([request.auth.token.email.split('@')[0].split('_v')[0].upper()]);
+    }
+
+
+    // Registrations are created only by the payment server after Razorpay confirms the payment.
+    // (orders/* has no rule: server-only.)
+    match /registrations/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if false;
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phone']));
+      allow delete: if isAdmin();
+    }
+
+    // Problems stay hidden from students until the organiser starts the contest.
+    match /questions/{qid} {
+      allow read: if isAdmin() || (isPaid() && contestOpen());
+      allow write: if isAdmin();
+    }
+
+    // Students submit during the live contest; organisers judge.
+    match /submissions/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isPaid() && comp().status == 'live'
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.points == 0;
+      allow update, delete: if isAdmin();
+    }
+
+    // Arena code drafts per student (autosaved while typing).
+    match /drafts/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Arena focus log (tab switches) per student.
+    match /sessions/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Scores written by the organiser while judging; public once results are published.
+    match /leaderboard/{uid} {
+      allow read: if isAdmin() || (exists(/databases/$(database)/documents/config/competition) && comp().status == 'published')
+        || (signedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    match /announcements/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

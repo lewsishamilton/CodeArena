@@ -8,10 +8,10 @@
 const DEFAULTS = {
   name: 'CODE//ARENA',
   edition: '2026',
-  date: '2026-11-14T09:30',          // placeholder date
-  venue: 'Main Auditorium, Block A', // placeholder venue
-  fee: 199,                          // placeholder fee (INR)
-  capacity: 500,
+  date: '2026-10-10T14:00',
+  venue: 'Room 02, MG Block',
+  fee: 29,
+  capacity: 60,
   durationMin: 120,
   organiser: 'Department of Computer Science & Engineering'
 };
@@ -163,16 +163,16 @@ const weighted = (r, items, weights) => {
 };
 
 let _people;
-/** 412 deterministic sample registrations. */
+/** 48 deterministic sample registrations (60 seats in total). */
 function participants() {
   if (_people) return _people;
   const r = rng(2026), pick = a => a[Math.floor(r() * a.length)];
   const now = Date.now(), day = 864e5;
-  _people = Array.from({ length: 412 }, () => {
+  _people = Array.from({ length: 48 }, () => {
     const first = pick(FIRST), last = pick(LAST);
     const x = r();
     const payment = x < 0.89 ? 'paid' : x < 0.97 ? 'pending' : 'failed';
-    const year = 1 + Math.floor(r() * 4);
+    const year = 2 + Math.floor(r() * 2); // open to 2nd & 3rd years only
     const dept = weighted(r, DEPTS, DEPT_WEIGHTS);
     const daysAgo = Math.floor(Math.pow(r(), 1.7) * 21); // more recent sign-ups
     const m = r();
@@ -255,11 +255,11 @@ const questions = () => store.get('questions', DEFAULT_QUESTIONS);
 
 /* ---------- Results ---------- */
 let _results;
-/** Sample leaderboard: 342 students who competed, with per-problem outcomes. */
+/** Sample leaderboard: the paid students who competed, with per-problem outcomes. */
 function sampleResults() {
   if (_results) return _results;
   const r = rng(77), pts = questions().map(q => q.points);
-  _results = participants().filter(p => p.payment === 'paid').slice(0, 342).map(p => {
+  _results = participants().filter(p => p.payment === 'paid').map(p => {
     const skill = r();
     const solved = [skill > 0.06, skill > 0.38, skill > 0.74 && r() > 0.15];
     const attempts = solved.map(s => 1 + Math.floor(r() * (s ? 2.4 : 3)));
@@ -352,7 +352,7 @@ function ticketHTML(s) {
       <div class="ticket-grid">
         <div><span>Event</span><strong>${esc(CONFIG.name)} ${esc(CONFIG.edition)}</strong></div>
         <div><span>Date</span><strong>${fmtDate(eventDate())}</strong></div>
-        <div><span>Reporting</span><strong>08:30 · Arena opens ${fmtTime(eventDate())}</strong></div>
+        <div><span>Reporting</span><strong>1:30 PM · Arena opens ${fmtTime(eventDate())}</strong></div>
         <div><span>Venue</span><strong>${esc(CONFIG.venue)}</strong></div>
         <div><span>Registration ID</span><strong>${esc(s.regId)}</strong></div>
         <div><span>Payment</span><strong>${paid ? `${money(CONFIG.fee)} · ${esc(s.method)}` : 'Pending'}</strong></div>
@@ -367,12 +367,12 @@ function ticketHTML(s) {
 }
 
 function icsFile() {
-  const d = eventDate(), end = new Date(d.getTime() + (CONFIG.durationMin + 120) * 60000);
+  const d = eventDate(), end = new Date(d.getTime() + (CONFIG.durationMin + 30) * 60000);
   const f = x => x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CODE ARENA//Prototype//EN', 'BEGIN:VEVENT',
     `UID:${me().ticketId}@codearena.prototype`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(d)}`, `DTEND:${f(end)}`,
     `SUMMARY:${CONFIG.name} ${CONFIG.edition}`, `LOCATION:${CONFIG.venue}`,
-    `DESCRIPTION:Ticket ${me().ticketId}. Report by 08:30 with your college ID.`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    `DESCRIPTION:Ticket ${me().ticketId}. Report by 1:30 PM with your college ID.`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
 }
 
 /* =========================================================================
@@ -827,7 +827,7 @@ function initTicket() {
    ========================================================================= */
 const ANNOUNCEMENTS = [
   { when: '2 days ago', title: 'Practice arena is open', body: 'Get comfortable with the editor and the judge before the event. Practice submissions are not scored.', pinned: true },
-  { when: '5 days ago', title: 'Reporting time: 08:30', body: 'Carry your college ID card and your digital ticket. Check-in closes at 09:15 sharp.' },
+  { when: '5 days ago', title: 'Reporting time: 1:30 PM', body: 'Carry your college ID card and your digital ticket. Check-in closes at 1:50 PM sharp.' },
   { when: '1 week ago', title: 'Compiler versions published', body: 'C (GCC 13), C++17 (G++ 13), Python 3.12 and Java 21 are supported in the arena.' }
 ];
 
@@ -1557,7 +1557,7 @@ function initAdmin() {
   }
   function simStep() {
     const sim = store.get('sim', { active: 0, subs: 0, accepted: 0, flags: 0 });
-    const target = Math.min(342, ticketIndex().size);
+    const target = ticketIndex().size;
     sim.active = Math.min(target, sim.active + Math.ceil((target - sim.active) * 0.3) + Math.floor(Math.random() * 3));
     const burst = 1 + Math.floor(Math.random() * 4);
     const pool = participants();
