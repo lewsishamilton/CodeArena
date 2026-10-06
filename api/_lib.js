@@ -4,8 +4,9 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 
-if (!getApps().length) initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}')) })
-export const db = getFirestore()
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+if (serviceAccount && !getApps().length) initializeApp({ credential: cert(JSON.parse(serviceAccount)) })
+export const db = serviceAccount ? getFirestore() : null
 export { FieldValue }
 
 export class HttpError extends Error {
@@ -16,6 +17,7 @@ export class HttpError extends Error {
 export const handler = fn => async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   try {
+    if (!db) throw new HttpError(503, 'The payment server is not set up yet (missing Firebase service account).')
     res.status(200).json(await fn(req))
   } catch (e) {
     if (!e.status) console.error(e)
