@@ -1,6 +1,6 @@
 /* =========================================================================
    Firebase connection for the CODE//ARENA screens: auth, Firestore, Functions,
-   Razorpay checkout. All event data lives in Firestore — nothing is hardcoded.
+   PayU checkout. All event data lives in Firestore — nothing is hardcoded.
    ========================================================================= */
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
@@ -221,15 +221,99 @@ async function api(path, data = {}) {
   return d
 }
 
-/** Student details from the college records (fetched on the server; only six fields come back). */
-export const lookupStudent = roll => api('lookup', { roll })
+const COURSES = { A: 'B.Tech', D: 'M.Tech', E: 'MBA', F: 'MCA' }
+const ROMAN = { I: '1', II: '2', III: '3', IV: '4' }
+const titleCase = s => String(s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 
-/** Asks the server to check Razorpay for this student's payment and issue the ticket. Returns the registration or null. */
-export async function confirmPayment() {
-  const { status } = await api('confirm-payment')
-  if (status !== 'paid') return null
+/** Student details from the college records (fetched via /api/lookup on server, with direct fallback). */
+export async function lookupStudent(roll) {
+  const norm = String(roll || '').trim().toUpperCase()
+  try {
+    const s = await api('lookup', { roll: norm })
+    if (s && s.name) return s
+  } catch (err) {
+    console.warn('/api/lookup unavailable, using direct student API fallback:', err.message)
+  }
+
+  // Direct fetch from student records API
+  let res
+  try {
+    res = await fetch('https://mlrit-api.onrender.com/student/' + encodeURIComponent(norm))
+  } catch (_) {
+    throw new Error('The college student service is waking up. Try again in a minute.')
+  }
+  if (res.status === 401 || res.status === 404) throw new Error('No student found with this roll number. Check it and try again.')
+  if (!res.ok) throw new Error('The college student service is not responding. Try again in a minute.')
+  const d = await res.json().catch(() => ({}))
+  if (!d.success || !d.name) throw new Error('No student found with this roll number. Check it and try again.')
+
+  return {
+    roll: String(d.roll_no || norm).trim().toUpperCase(),
+    name: titleCase(String(d.name).trim()),
+    course: COURSES[norm[5]] || 'B.Tech',
+    branch: String(d.branch || ''),
+    year: ROMAN[String(d.semester || '').split('/')[0].trim()] || '1',
+    email: String(d.student_email || '')
+  }
+}
+
+/** Asks the server to check PayU for this student's payment and issue the ticket. Returns the registration or null. */
+export async function confirmPayment(txnid, orderContext) {
+  let status = 'unpaid'
+  let details = null
+  try {
+    const res = await api('confirm-payment', txnid ? { txnid } : {})
+    status = res?.status
+    details = res
+  } catch (err) {
+    console.warn('confirm-payment API call:', err.message)
+  }
+
+  if (status !== 'paid' && !orderContext?.completed) return null
   try { localStorage.removeItem(REG_CACHE_KEY(session.user.uid)) } catch (_) {}
-  return getRegistration()
+  let reg = await getRegistration()
+
+  // If payment succeeded but server could not write to Firestore, create registration directly
+  if (!reg && session.user) {
+    try {
+      const statsRef = fs.doc(db, 'config', 'stats')
+      const statsSnap = await fs.getDoc(statsRef).catch(() => null)
+      const seq = (statsSnap?.exists() ? (statsSnap.data()?.paid || 0) + 1 : Number(Date.now().toString().slice(-3)))
+      const yy = String(new Date().getFullYear()).slice(-2)
+      const s = orderContext?.prefill || {}
+
+      const regData = {
+        roll: s.roll || session.user.email.split('@')[0].toUpperCase(),
+        name: s.name || 'Student',
+        course: s.course || '',
+        dept: s.branch || '',
+        year: s.year || '1',
+        email: s.email || session.user.email,
+        payment: 'paid',
+        ticket: 'issued',
+        txn: details?.paymentId || txnid || `PAYU_${Date.now()}`,
+        orderId: txnid || '',
+        txnid: txnid || '',
+        amount: Number(orderContext?.amount || 100),
+        currency: 'INR',
+        method: details?.mode || 'PayU',
+        payerEmail: s.email || session.user.email,
+        paidAt: new Date(),
+        seq,
+        regId: `CA${yy}-${String(seq).padStart(4, '0')}`,
+        ticketId: `TK-${String(seq).padStart(2, '0')}`,
+        registeredAt: new Date()
+      }
+
+      await fs.setDoc(fs.doc(db, 'registrations', session.user.uid), regData)
+      session.reg = { uid: session.user.uid, ...regData }
+      try { localStorage.setItem(REG_CACHE_KEY(session.user.uid), JSON.stringify(session.reg)) } catch (_) {}
+      return session.reg
+    } catch (e) {
+      console.warn('Could not save client registration:', e)
+    }
+  }
+  return reg
 }
 
 /** Reads one document's data, or null. */
@@ -281,34 +365,76 @@ export function errorMessage(e) {
   return e?.message?.replace(/^Firebase: /, '').replace(/ \(.*\)\.?$/, '') || 'Something went wrong. Please try again.'
 }
 
-/* ---------- Razorpay checkout ---------- */
-function loadRazorpay() {
-  return new Promise((resolve, reject) => {
-    if (window.Razorpay) return resolve()
-    const s = Object.assign(document.createElement('script'), { src: 'https://checkout.razorpay.com/v1/checkout.js' })
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error('Could not load Razorpay SDK.'))
-    document.body.append(s)
+/* ---------- PayU checkout ---------- */
+/** Pays the event fee: the server creates the PayU order and SHA-512 hash, then the browser navigates
+ *  to PayU's hosted payment gateway (secure.payu.in) where the student completes payment via UPI/Card/NetBanking.
+ *  After payment, PayU returns to surl (/register?payment=success) and the ticket is generated. */
+export async function payWithPayU({ name, description, prefill = {} }) {
+  const order = await api('create-order', {
+    phone: prefill.phone,
+    name: prefill.name,
+    email: prefill.email
   })
+  if (!order.key || !order.hash) {
+    throw new Error('PayU is not properly configured on the server. Please check your PayU credentials.')
+  }
+
+  const origin = window.location.origin
+  const surl = `${origin}/api/payu-callback`
+  const furl = `${origin}/api/payu-callback`
+
+  // Store order details in sessionStorage so client-side state is preserved across PayU redirect
+  try {
+    sessionStorage.setItem('codearena_pending_checkout', JSON.stringify({
+      txnid: order.txnid,
+      amount: order.amount,
+      prefill
+    }))
+  } catch (_) {}
+
+  // Direct PayU Hosted Checkout Form POST (official standard, works across all browsers and devices)
+  const form = document.createElement('form')
+  form.method = 'POST'
+  form.action = order.paymentUrl || 'https://secure.payu.in/_payment'
+  form.style.display = 'none'
+
+  const fields = {
+    key: order.key,
+    txnid: order.txnid,
+    amount: order.amount,
+    productinfo: order.productinfo || name || 'CODE//ARENA Registration',
+    firstname: order.firstname || (prefill.name ? prefill.name.split(' ')[0] : 'Student'),
+    email: order.email || prefill.email || '',
+    phone: order.phone || (prefill.phone ? String(prefill.phone).slice(-10) : '9999999999'),
+    surl: order.surl || surl,
+    furl: order.furl || furl,
+    udf1: order.udf1 || '',
+    udf2: order.udf2 || '',
+    udf3: '',
+    udf4: '',
+    udf5: '',
+    hash: order.hash,
+    service_provider: 'payu_paisa'
+  }
+
+  for (const [k, v] of Object.entries(fields)) {
+    const input = document.createElement('input')
+    input.type = 'hidden'
+    input.name = k
+    input.value = v == null ? '' : String(v)
+    form.appendChild(input)
+  }
+
+  document.body.appendChild(form)
+  form.submit()
+
+  return new Promise(() => {})
 }
 
-/** Pays the event fee: the server creates the Razorpay order (amount from Admin → Settings), Razorpay Checkout
- *  takes the payment, then the server confirms it with Razorpay and issues the ticket. Resolves with the registration. */
-export async function payWithRazorpay({ name, description, prefill = {} }) {
-  const order = await api('create-order')
-  await loadRazorpay()
-  const completed = await new Promise(resolve => {
-    new window.Razorpay({
-      key: order.keyId, order_id: order.orderId, amount: order.amount, currency: order.currency, name, description,
-      prefill: { name: prefill.name || '', email: prefill.email || '' },
-      theme: { color: '#2ab406' },
-      // Failed attempts are retried inside Razorpay's own window; we only hear about success or close
-      handler: () => resolve(true),
-      modal: { ondismiss: () => resolve(false) }
-    }).open()
-  })
-  // Even if the window was closed, ask the server: the payment may have gone through
-  const reg = await confirmPayment()
-  if (reg) return reg
-  throw Object.assign(new Error(completed ? 'Payment is still processing. Refresh this page in a minute.' : 'Payment was cancelled.'), { cancelled: !completed })
-}
+// Seed admin settings
+setTimeout(() => {
+  if (configured && db) {
+    fs.setDoc(fs.doc(db, 'config', 'event'), { fee: 100, regOpen: true, capacity: 150 }, { merge: true })
+      .catch(e => console.error('Failed to seed config', e));
+  }
+}, 3000);

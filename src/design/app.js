@@ -3,7 +3,7 @@
    All event data comes from Firebase (backend.js): settings, registrations,
    problems, submissions, scores and announcements. Nothing is hardcoded.
    ========================================================================= */
-import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, lookupStudent, confirmPayment, payWithRazorpay, getData, getAll, watchAll, watchDoc, ms, errorMessage } from './backend.js';
+import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage } from './backend.js';
 import QRCode from 'qrcode';
 
 /* ---------- Event state — loaded from Firestore config/* (Admin → Settings / Competition control) ---------- */
@@ -471,10 +471,9 @@ function renderHeroPanel() {
 }
 
 /* =========================================================================
-   PAGE: REGISTRATION — roll lookup → create password → Razorpay → ticket
+   PAGE: REGISTRATION — roll lookup → create password → PayU → ticket
    ========================================================================= */
 function initRegister() {
-  if (session.isAdmin) return location.replace('/admin');
   const go = step => {
     $$('[data-step]').forEach(p => p.hidden = Number(p.dataset.step) !== step);
     $$('.stepper li').forEach((li, i) => {
@@ -586,8 +585,8 @@ function initRegister() {
       // Set up Step 2 payment view
       toPayment(student);
 
-      // Immediately launch Razorpay checkout right after submission of creation details!
-      toast('Opening Razorpay checkout…', 'info');
+      // Immediately launch PayU checkout right after submission of creation details!
+      toast('Opening PayU checkout…', 'info');
       processCheckout(false);
     } catch (e) {
       console.error('Check error:', e);
@@ -623,7 +622,7 @@ function initRegister() {
     go(2);
   }
 
-  // Payment: Razorpay Checkout, then the ticket is issued
+  // Payment: PayU Checkout, then the ticket is issued
   async function processCheckout() {
     if (!isRegistrationOpen()) {
       payView('form');
@@ -637,7 +636,7 @@ function initRegister() {
 
     payView('processing');
     try {
-      const paid = await payWithRazorpay({
+      const paid = await payWithPayU({
         name: CONFIG.name,
         description: `Entry pass · ${pendingCheckout.student.roll}`,
         prefill: pendingCheckout.student
@@ -673,10 +672,69 @@ function initRegister() {
   }
 
   const reg = session.reg;
-  if (reg?.payment === 'paid' || reg?.paid) { showSuccess(reg, true); go(3); }
-  else if (session.user) confirmPayment().then(r => { if (r) { showSuccess(r); go(3); } }).catch(() => {});
-  else {
+  if (reg?.payment === 'paid' || reg?.paid) {
+    showSuccess(reg, true);
+    go(3);
+  } else {
+    // Check if returning from PayU Hosted Checkout redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const incomingTxnid = urlParams.get('txnid');
+
+    if (paymentStatus === 'success') {
+      payView('processing');
+      const procMsg = $('#pay-processing p');
+      if (procMsg) procMsg.textContent = 'Payment successful! Confirming your registration…';
+      go(2);
+
+      let savedContext = null;
+      try {
+        savedContext = JSON.parse(sessionStorage.getItem('codearena_pending_checkout') || 'null');
+      } catch (_) {}
+
+      (async () => {
+        try {
+          const confirmed = await confirmPayment(incomingTxnid, { completed: true, ...savedContext });
+          if (confirmed) {
+            PAID++;
+            applyConfig();
+            showSuccess(confirmed);
+            go(3);
+            toast(`Payment confirmed! Ticket ${confirmed.ticketId || confirmed.ticketNumber || 'issued'} generated.`);
+            try { sessionStorage.removeItem('codearena_pending_checkout'); } catch (_) {}
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+          }
+        } catch (err) {
+          console.warn('Payment confirmation:', err);
+        }
+
+        const existing = await getRegistration();
+        if (existing?.payment === 'paid') {
+          showSuccess(existing);
+          go(3);
+          window.history.replaceState({}, '', window.location.pathname);
+        } else {
+          $('#pay-fail-msg').textContent = 'Your payment was received but is still being verified. Please refresh this page in a moment.';
+          payView('failed');
+          go(2);
+        }
+      })();
+      return;
+    } else if (paymentStatus === 'failed' || paymentStatus === 'error') {
+      const errorMsg = urlParams.get('msg') || 'Payment was cancelled or could not be completed.';
+      $('#pay-fail-msg').textContent = errorMsg;
+      payView('failed');
+      go(2);
+      toast(errorMsg, 'error');
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
     go(1);
+    if (session.user) {
+      confirmPayment().then(r => { if (r) { showSuccess(r); go(3); } }).catch(() => {});
+    }
     if (!isRegistrationOpen()) {
       const full = isCapacityReached();
       setEmpty(

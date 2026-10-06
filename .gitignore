@@ -8,3 +8,6 @@ functions/.env
 users.json
 *-firebase-adminsdk-*.json
 service-account*.json
+
+.vercel
+.env*

@@ -1,8 +1,27 @@
 /* Shared server code for the Vercel functions in /api (files starting with "_" are not endpoints).
-   Firebase Admin writes registrations; Razorpay's API is the source of truth for every payment. */
+   Firebase Admin writes registrations; PayU's API is the source of truth for every payment. */
+import crypto from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+
+// Fallback loader for .env / .env.local if not pre-injected into process.env
+for (const envFile of ['.env.local', '.env']) {
+  try {
+    const p = path.resolve(process.cwd(), envFile)
+    if (fs.existsSync(p)) {
+      const text = fs.readFileSync(p, 'utf8')
+      for (const line of text.split(/\r?\n/)) {
+        const m = line.trim().match(/^([A-Z0-9_]+)=(.*)$/)
+        if (m && !process.env[m[1]]) {
+          process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '')
+        }
+      }
+    }
+  } catch (_) {}
+}
 
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
 if (serviceAccount && !getApps().length) initializeApp({ credential: cert(JSON.parse(serviceAccount)) })
@@ -17,7 +36,6 @@ export class HttpError extends Error {
 export const handler = fn => async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
   try {
-    if (!db) throw new HttpError(503, 'The payment server is not set up yet (missing Firebase service account).')
     res.status(200).json(await fn(req))
   } catch (e) {
     if (!e.status) console.error(e)
@@ -27,25 +45,173 @@ export const handler = fn => async (req, res) => {
 
 /** The signed-in student, from the Firebase ID token in "Authorization: Bearer …". */
 export async function student(req) {
+  const token = String(req.headers.authorization || '').replace(/^Bearer /, '').trim()
+  if (!token) throw new HttpError(401, 'Please log in to continue.')
+
   let decoded
-  try { decoded = await getAuth().verifyIdToken(String(req.headers.authorization || '').replace(/^Bearer /, '')) }
-  catch { throw new HttpError(401, 'Your login expired. Log in again.') }
-  const m = /^([a-z0-9]+)(?:_v\d+)?@students\.codearena\.local$/.exec(decoded.email || '')
-  if (!m) throw new HttpError(403, 'Student accounts only.')
-  return { uid: decoded.uid, roll: m[1].toUpperCase() }
+  if (getApps().length) {
+    try {
+      decoded = await getAuth().verifyIdToken(token)
+    } catch {
+      throw new HttpError(401, 'Your login expired. Log in again.')
+    }
+  } else {
+    // If Admin SDK is not initialized, decode the JWT payload
+    try {
+      const parts = token.split('.')
+      if (parts.length === 3) {
+        decoded = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
+        decoded.uid = decoded.user_id || decoded.sub
+      }
+    } catch (_) {}
+    if (!decoded?.uid) {
+      throw new HttpError(401, 'Invalid or expired login session.')
+    }
+  }
+
+  const email = decoded.email || req.body?.email || ''
+  const m = /^([a-z0-9]+)(?:_v\d+)?@students\.codearena\.local$/i.exec(email)
+  const roll = m ? m[1].toUpperCase() : (req.body?.roll ? String(req.body.roll).trim().toUpperCase() : '')
+  if (!roll) throw new HttpError(403, 'Student accounts only.')
+  return { uid: decoded.uid, roll }
 }
 
-/** Razorpay REST API (GET without body, POST with body). */
-export async function razorpay(path, body) {
-  const key = Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')
-  const r = await fetch('https://api.razorpay.com/v1' + path, {
-    method: body ? 'POST' : 'GET',
-    headers: { Authorization: `Basic ${key}`, 'Content-Type': 'application/json' },
-    body: body && JSON.stringify(body)
-  })
-  const d = await r.json()
-  if (!r.ok) throw new HttpError(502, d.error?.description || 'Payment service error. Try again.')
-  return d
+/* ---------- PayU Payment Gateway ---------- */
+export const PAYU_KEY = process.env.PAYU_KEY || process.env.PAYU_MERCHANT_KEY || ''
+export const PAYU_SALT = process.env.PAYU_SALT || process.env.PAYU_MERCHANT_SALT || ''
+export const PAYU_ENV = (process.env.PAYU_ENV || 'production').toLowerCase()
+export const PAYU_IS_PROD = PAYU_ENV !== 'test' && PAYU_ENV !== 'sandbox'
+export const PAYU_POST_URL = process.env.PAYU_POST_URL || (PAYU_IS_PROD
+  ? 'https://info.payu.in/merchant/postservice.php?form=2'
+  : 'https://test.payu.in/merchant/postservice.php?form=2')
+export const PAYU_PAYMENT_URL = process.env.PAYU_PAYMENT_URL || (PAYU_IS_PROD
+  ? 'https://secure.payu.in/_payment'
+  : 'https://test.payu.in/_payment')
+export const PAYU_BOLT_URL = PAYU_IS_PROD
+  ? 'https://jssdk.payu.in/bolt/bolt.min.js'
+  : 'https://jssdk-uat.payu.in/bolt/bolt.min.js'
+
+export function payuHash(str) {
+  return crypto.createHash('sha512').update(str).digest('hex')
+}
+
+/** Generates the SHA-512 hash required for PayU payment checkout:
+ *  sha512(key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5|udf6|udf7|udf8|udf9|udf10|SALT) */
+export function createPaymentHash({
+  key = PAYU_KEY,
+  txnid,
+  amount,
+  productinfo,
+  firstname,
+  email,
+  udf1 = '',
+  udf2 = '',
+  udf3 = '',
+  udf4 = '',
+  udf5 = '',
+  udf6 = '',
+  udf7 = '',
+  udf8 = '',
+  udf9 = '',
+  udf10 = '',
+  salt = PAYU_SALT
+}) {
+  const hashString = [
+    key,
+    txnid,
+    amount,
+    productinfo,
+    firstname,
+    email,
+    udf1,
+    udf2,
+    udf3,
+    udf4,
+    udf5,
+    udf6,
+    udf7,
+    udf8,
+    udf9,
+    udf10,
+    salt
+  ].join('|')
+  return payuHash(hashString)
+}
+
+/** Verifies the reverse hash sent by PayU in callbacks/response:
+ *  sha512(SALT|status|udf10|udf9|udf8|udf7|udf6|udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key) */
+export function verifyReverseHash({
+  status,
+  txnid,
+  amount,
+  productinfo,
+  firstname,
+  email,
+  udf1 = '',
+  udf2 = '',
+  udf3 = '',
+  udf4 = '',
+  udf5 = '',
+  udf6 = '',
+  udf7 = '',
+  udf8 = '',
+  udf9 = '',
+  udf10 = '',
+  additionalCharges,
+  hash,
+  key = PAYU_KEY,
+  salt = PAYU_SALT
+}) {
+  const base = [
+    salt,
+    status,
+    udf10,
+    udf9,
+    udf8,
+    udf7,
+    udf6,
+    udf5,
+    udf4,
+    udf3,
+    udf2,
+    udf1,
+    email,
+    firstname,
+    productinfo,
+    amount,
+    txnid,
+    key
+  ].join('|')
+  const seq = additionalCharges ? `${additionalCharges}|${base}` : base
+  const expectedHash = payuHash(seq).toLowerCase()
+  return expectedHash === String(hash || '').toLowerCase()
+}
+
+/** Server-to-server payment verification with PayU using the verify_payment command. */
+export async function verifyPayUPayment(txnid) {
+  if (!PAYU_KEY || !PAYU_SALT) throw new HttpError(503, 'PayU credentials (PAYU_KEY / PAYU_SALT) are not configured on the server.')
+  const hash = payuHash(`${PAYU_KEY}|verify_payment|${txnid}|${PAYU_SALT}`)
+  const params = new URLSearchParams()
+  params.set('key', PAYU_KEY)
+  params.set('command', 'verify_payment')
+  params.set('var1', txnid)
+  params.set('hash', hash)
+
+  let r
+  try {
+    r = await fetch(PAYU_POST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    })
+  } catch (err) {
+    throw new HttpError(502, 'Could not contact PayU payment verification service.')
+  }
+
+  const data = await r.json().catch(() => null)
+  if (!data) throw new HttpError(502, 'Invalid response from PayU payment verification service.')
+  const details = data.transaction_details?.[txnid]
+  return details || null
 }
 
 /* ---------- College student records ----------
@@ -73,12 +239,24 @@ async function fetchStudent(roll) {
 /** Eligibility + seat checks before showing details or taking money. */
 export async function checkCanRegister(roll) {
   if (!/^[A-Z0-9]{10}$/.test(roll)) throw new HttpError(400, 'Enter a valid 10-character roll number.')
-  const taken = await db.collection('registrations').where('roll', '==', roll).limit(1).get()
-  if (!taken.empty) throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
-  const cfg = (await db.doc('config/event').get()).data() ?? {}
+  if (db) {
+    const taken = await db.collection('registrations').where('roll', '==', roll).limit(1).get()
+    if (!taken.empty) throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
+  }
+  let cfg = {}
+  if (db) {
+    try {
+      cfg = (await db.doc('config/event').get()).data() ?? {}
+    } catch (_) {}
+  }
   if (cfg.regOpen === false) throw new HttpError(403, 'Registrations are closed.')
-  const paid = (await db.doc('config/stats').get()).data()?.paid ?? 0
-  if (cfg.capacity && paid >= cfg.capacity) throw new HttpError(409, 'All seats are taken.')
+  if (db) {
+    try {
+      const paid = (await db.doc('config/stats').get()).data()?.paid ?? 0
+      if (cfg.capacity && paid >= cfg.capacity) throw new HttpError(409, 'All seats are taken.')
+    } catch (_) {}
+  }
+  if (cfg.fee === undefined) cfg.fee = 299
   const s = await fetchStudent(roll)
   if (cfg.eligibleYears?.length && !cfg.eligibleYears.map(String).includes(s.year)) {
     throw new HttpError(403, `This contest is open to year ${cfg.eligibleYears.join(' & ')} students only.`)

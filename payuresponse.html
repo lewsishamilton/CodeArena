@@ -1,0 +1,122 @@
+<!doctype html><html lang="en"><head><base href="/public/"/><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/><link rel="shortcut icon" type="image/ico" href="assets/images/favicon.ico"/><link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'"/><title>Payment Page</title><style>.main-content {
+        width: 100%;
+        height: 100%;
+      }
+
+      .loader-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-right: -50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+
+      .loader-content h1,
+      p {
+        font-family: "Inter", sans-serif;
+        font-size: 18px;
+        color: #2e2e2e;
+        font-weight: 600;
+        letter-spacing: 0.34px;
+      }
+
+      .loader-content p {
+        font-size: 12px;
+        color: #8e8e8e;
+        font-weight: 400;
+        letter-spacing: 0.8px;
+      }
+
+      .noLoadContent {
+        display: none;
+      }
+
+      .express-loader {
+        height: 100vh;
+        width: 100vw;
+        font-family: "Inter", sans-serif;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: absolute;
+      }
+
+      .exp-loader-content {
+        border-radius: 8px;
+        background-color: rgba(255, 255, 255, 1);
+        left: 0;
+        top: 0px;
+        bottom: 0;
+        height: 100vh;
+        width: 100%;
+        max-height: 720px;
+        max-width: 375px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      .payuLoading {
+        max-width: 200px;
+        max-height: 200px;
+      }</style><script src="ua-parser.min.js"></script><script>try {
+        var allowedES6SentryBrowsers = {
+          'Chrome': 63,
+          'Edge': 79,
+          'Safari': 12,
+          'Firefox': 58,
+          'Opera': 50,
+          'Samsung Internet': 8
+        }
+        var isSentryES6 = false;
+        var browser = UAParser().browser;
+        var os = UAParser().os;
+        var sentryScript = document.createElement('script');
+        sentryScript.defer = true;
+        sentryScript.fetchPriority = 'high';
+        sentryScript.onload = function () {
+          Sentry.init({
+            dsn: "https://74b800a22d0c4a0f881f1d1c4215dbdc@sentry3.payu.in/14",
+            environment: "prod",
+            integrations: [new Sentry.BrowserTracing()],
+            tracesSampleRate: 0.1,
+            replaysOnErrorSampleRate: 1.0,
+            release: "CXF_5.00.80"
+          });
+        }
+        isSentryES6 = window.fetch && allowedES6SentryBrowsers[browser.name] && parseInt(browser.major) >= allowedES6SentryBrowsers[browser.name];
+        if (isSentryES6) {
+          sentryScript.src = 'sentry.es6.min.js';
+        } else {
+          sentryScript.src = 'sentry.min.js';
+        }
+        var currentScript = document.currentScript;
+        currentScript.parentNode.insertBefore(sentryScript, currentScript.nextSibling);
+      } catch (e) {
+        var Sentry = undefined;
+      }</script><script src="webcheckoutproRedirect.js"></script><script defer="defer" src="index.173e3e4e89903e7ab586.js?1302677a76bd3b3840a4"></script></head><body><div id="loader"></div><div id="app"></div><script>var expressLoader =
+        '<div id="express-loader" class="express-loader"><style>body{margin:0;padding:0}</style><div class="exp-loader-content"><img src="assets/images/loadingPayu.gif" width="100" /></div></div>';
+      var checkoutLoader =
+        '<div id="please_wait" class="main-content"><div class="loader-content"><img src="assets/images/loadingPayu.gif" alt="loading" class="payuLoading"/></div></div>';
+      function myFunction() {
+
+        var urlParams = new URLSearchParams(window.location.search);
+        var myParam = urlParams.get("domain");
+        var isOrigin;
+        if (myParam) {
+          isOrigin = myParam.replace(/["']/g, "");
+        }
+        var isExpress = isOrigin;
+        var element = document.getElementById("loader");
+        if (!isExpress) {
+          element.innerHTML = checkoutLoader;
+        } else {
+          element.innerHTML = expressLoader;
+        }
+      }
+      myFunction();
+      window.indexStartMark =
+        window.performance && window.performance.mark("index_start");</script><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;800;900&display=swap" rel="stylesheet"/></noscript></body></html>

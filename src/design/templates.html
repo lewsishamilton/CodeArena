@@ -258,14 +258,14 @@
 
   <div class="reg-layout">
     <ol class="stepper" aria-label="Registration steps">
-      <li><span class="n">1</span><div><strong>Student Details</strong><small>Enter roll number</small></div></li>
+      <li class="active"><span class="n">1</span><div><strong>Student Details</strong><small>Enter roll number</small></div></li>
       <li><span class="n">2</span><div><strong>Payment</strong><small>Registration fee</small></div></li>
       <li><span class="n">3</span><div><strong>Confirmed</strong><small>Ticket issued</small></div></li>
     </ol>
 
     <div>
       <!-- STEP 1: Roll number & auto details -->
-      <section class="card reg-panel" data-step="1" hidden>
+      <section class="card reg-panel" data-step="1">
         <div class="eyebrow" style="margin-bottom:8px"><b>Step 1</b>Quick Verification</div>
         <h2>Enter your Roll Number</h2>
         <p class="lead">Enter your college roll number. Your details are fetched from the college records, then you create a password — your roll number and this password are your login.</p>
@@ -345,21 +345,21 @@
 
         <div class="reg-actions">
           <a class="btn btn-ghost" href="/">Cancel</a>
-          <button class="btn btn-primary" id="step1-next" disabled>Submit Details &amp; Pay with Razorpay <i data-icon="arrow"></i></button>
+          <button class="btn btn-primary" id="step1-next" disabled>Submit Details &amp; Pay with PayU <i data-icon="arrow"></i></button>
         </div>
       </section>
 
-      <!-- STEP 2: Razorpay Payment & Ticket Generation -->
+      <!-- STEP 2: PayU Payment & Ticket Generation -->
       <section class="card reg-panel" data-step="2" hidden>
         <div data-pay-view="form">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
             <div>
               <h2>Payment &amp; Ticket Generation</h2>
-              <p class="lead">Complete payment via Razorpay to confirm your seat, generate your official entry ticket, and activate your login.</p>
+              <p class="lead">Complete payment via PayU to confirm your seat, generate your official entry ticket, and activate your login.</p>
             </div>
             <div style="display:inline-flex;align-items:center;gap:8px">
               <span class="badge badge-success" style="font-size:12px;padding:5px 10px"><i data-icon="shield"></i> 256-Bit SSL</span>
-              <span class="badge plain" style="font-size:12px;padding:5px 10px;border-color:var(--accent);color:var(--accent)">Razorpay Verified</span>
+              <span class="badge plain" style="font-size:12px;padding:5px 10px;border-color:var(--accent);color:var(--accent)">PayU Verified</span>
             </div>
           </div>
 
@@ -396,9 +396,9 @@
             </div>
           </div>
 
-          <!-- Razorpay Payment Methods -->
+          <!-- PayU Payment Methods -->
           <div style="margin-top:20px">
-            <label style="display:block;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:10px">Accepted Payment Methods via Razorpay</label>
+            <label style="display:block;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:10px">Accepted Payment Methods via PayU</label>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
               <div style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px">
                 <span>⚡</span> <span>UPI (GPay / PhonePe)</span>
@@ -420,19 +420,19 @@
             <button class="btn btn-ghost" id="step2-back">Back</button>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               <button class="btn btn-primary" id="pay-btn" style="background:#2ab406;color:#0c130b;font-weight:700">
-                <span>Pay with Razorpay · </span><span data-cfg="fee">—</span>
+                <span>Pay with PayU · </span><span data-cfg="fee">—</span>
               </button>
             </div>
           </div>
           <p class="muted" style="font-size:12px;text-align:center;margin-top:14px">
-            🔒 Payment is processed securely by Razorpay. Your account and entry ticket are officially generated and saved only after payment is confirmed.
+            🔒 Payment is processed securely by PayU. Your account and entry ticket are officially generated and saved only after payment is confirmed.
           </p>
         </div>
 
         <div data-pay-view="processing" hidden>
           <div class="state-block" style="padding-bottom:32px">
             <div class="state-icon wait"><div class="spinner"></div></div>
-            <h2>Processing payment with Razorpay…</h2>
+            <h2>Processing payment with PayU…</h2>
             <p>Confirming payment and generating your entry ticket. Please do not close or refresh this window.</p>
           </div>
         </div>

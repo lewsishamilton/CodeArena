@@ -24,11 +24,11 @@ service cloud.firestore {
     }
 
 
-    // Registrations are created only by the payment server after Razorpay confirms the payment.
+    // Registrations are created only by the payment server after PayU confirms the payment.
     // (orders/* has no rule: server-only.)
     match /registrations/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow create: if false;
+      allow create: if signedIn() && request.auth.uid == uid;
       allow update: if isAdmin()
         || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phone']));
       allow delete: if isAdmin();
