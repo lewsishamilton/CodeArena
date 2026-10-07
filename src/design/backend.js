@@ -202,7 +202,10 @@ export async function createAccount(roll, password) {
     await setUser(credential.user)
     return session
   } catch (error) {
-    if (!['auth/user-not-found', 'auth/invalid-credential'].includes(error.code)) throw error
+    // An unpaid account may already exist from a cancelled checkout. A wrong
+    // password must fall through to the server, which safely resets that
+    // orphan account after confirming it has no paid registration.
+    if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/wrong-password'].includes(error.code)) throw error
   }
   const enrolled = await api('complete-enrollment', { roll: cleanRoll, password })
   const credential = await signInWithCustomToken(auth, enrolled.token)
