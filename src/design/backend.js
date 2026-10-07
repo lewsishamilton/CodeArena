@@ -3,9 +3,10 @@
    PayU checkout. All event data lives in Firestore — nothing is hardcoded.
    ========================================================================= */
 import { initializeApp } from 'firebase/app'
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken, signOut } from 'firebase/auth'
 import * as fs from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const env = import.meta.env
 export const configured = Boolean(env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_PROJECT_ID)
@@ -39,12 +40,27 @@ const app = configured ? initializeApp({
 const auth = app && getAuth(app)
 export const db = app && fs.getFirestore(app)
 const functions = app && getFunctions(app, 'asia-south1')
+const storage = app && getStorage(app)
 export { fs, auth }
 
 /** Calls a Firebase Cloud Function (unused while the project is on the free Spark plan). */
 export const call = (name, data) => configured
   ? httpsCallable(functions, name)(data).then(r => r.data)
   : Promise.reject(new Error('The site is not connected to Firebase yet.'))
+
+export async function authHeaders() {
+  if (!auth?.currentUser) throw new Error('Please log in to continue.')
+  return { Authorization: `Bearer ${await auth.currentUser.getIdToken()}` }
+}
+
+export async function uploadCertificateTemplate(file, kind) {
+  if (!storage || !file) throw new Error('Choose a certificate template image first.')
+  if (!/^image\/(png|jpeg|jpg)$/.test(file.type)) throw new Error('Templates must be PNG or JPEG images.')
+  if (file.size > 5 * 1024 * 1024) throw new Error('Each certificate template must be 5 MB or smaller.')
+  const objectRef = ref(storage, `certificate-templates/${kind}-${Date.now()}-${file.name.replace(/[^a-z0-9._-]/gi, '_')}`)
+  await uploadBytes(objectRef, file, { contentType: file.type, cacheControl: 'public,max-age=3600' })
+  return getDownloadURL(objectRef)
+}
 
 const REG_CACHE_KEY = uid => `ca_reg_${uid}`
 
@@ -69,18 +85,9 @@ async function setUser(user) {
   session.isAdmin = user?.email === ADMIN_EMAIL
   session.reg = null
   if (user && !session.isAdmin) {
-    // 1. Immediately restore cached registration if present for 0ms delay
-    try {
-      const cached = localStorage.getItem(REG_CACHE_KEY(user.uid))
-      if (cached) session.reg = JSON.parse(cached)
-    } catch (_) {}
-
-    // 2. If cached, refresh in background; otherwise await fetch
-    if (session.reg) {
-      getRegistration().catch(() => {})
-    } else {
-      await getRegistration()
-    }
+    // Always use the current Firestore record. A stale cached registration can
+    // briefly show old payment data before the authoritative record arrives.
+    await getRegistration()
   }
 }
 export async function getRegistration() {
@@ -91,6 +98,39 @@ export async function getRegistration() {
       session.reg = { uid: snap.id, ...snap.data() }
       try { localStorage.setItem(REG_CACHE_KEY(session.user.uid), JSON.stringify(session.reg)) } catch (_) {}
     } else {
+      // Fallback: check if user has a paid order in orders collection
+      try {
+        const q = fs.query(fs.collection(db, 'orders'), fs.where('uid', '==', session.user.uid), fs.where('status', '==', 'paid'))
+        const ordSnap = await fs.getDocs(q).catch(() => null)
+        if (ordSnap && !ordSnap.empty) {
+          const authHeaders = await authHeader()
+          const res = await fetch('/api/confirm-payment', { method: 'POST', headers: authHeaders })
+          if (res.ok) {
+            const fresh = await fs.getDoc(fs.doc(db, 'registrations', session.user.uid))
+            if (fresh.exists()) {
+              session.reg = { uid: fresh.id, ...fresh.data() }
+              try { localStorage.setItem(REG_CACHE_KEY(session.user.uid), JSON.stringify(session.reg)) } catch (_) {}
+              return session.reg
+            }
+          }
+        }
+      } catch (_) {}
+      // Fallback 2: Check if there is an existing paid registration with this roll number
+      try {
+        const roll = session.user.email?.split('@')[0]?.split('_v')[0]?.toUpperCase();
+        if (roll) {
+          const qRoll = fs.query(fs.collection(db, 'registrations'), fs.where('roll', '==', roll), fs.where('payment', '==', 'paid'));
+          const rSnap = await fs.getDocs(qRoll).catch(() => null);
+          if (rSnap && !rSnap.empty) {
+            const matched = rSnap.docs[0];
+            session.reg = { uid: matched.id, ...matched.data() };
+            // Auto-heal current uid
+            fs.setDoc(fs.doc(db, 'registrations', session.user.uid), session.reg, { merge: true }).catch(() => {});
+            try { localStorage.setItem(REG_CACHE_KEY(session.user.uid), JSON.stringify(session.reg)); } catch (_) {}
+            return session.reg;
+          }
+        }
+      } catch (_) {}
       session.reg = null
       try { localStorage.removeItem(REG_CACHE_KEY(session.user.uid)) } catch (_) {}
     }
@@ -103,22 +143,48 @@ export async function getRegistration() {
 /** Student login: roll number + password. Firebase Auth keeps it across page loads. */
 export async function login(roll, password) {
   if (!configured) throw new Error('The site is not connected to Firebase yet.')
-  const cleanRoll = String(roll).trim().toUpperCase()
-  const version = await getRollVersion(cleanRoll)
-  try {
-    const cred = await signInWithEmailAndPassword(auth, rollEmail(cleanRoll, version), password)
-    await setUser(cred.user)
-    return session
-  } catch (e) {
-    if (version > 1) {
-      try {
-        const cred2 = await signInWithEmailAndPassword(auth, rollEmail(cleanRoll, 1), password)
-        await setUser(cred2.user)
-        return session
-      } catch (_) {}
-    }
-    throw e
+  const input = String(roll).trim()
+  const cleanId = input.toLowerCase()
+  if (cleanId === 'admin' || cleanId === ADMIN_EMAIL.toLowerCase()) {
+    return loginAdmin('admin', password)
   }
+
+  // If input contains '@', try signing in with that email directly
+  if (input.includes('@')) {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, input, password)
+      await setUser(cred.user)
+      await getRegistration()
+      return session
+    } catch (_) {}
+  }
+
+  const cleanRoll = input.toUpperCase()
+  const version = await getRollVersion(cleanRoll)
+
+  // Prioritize canonical email (version 1), then version from config, then versions 2-5 fallback
+  const attempts = [rollEmail(cleanRoll, 1)]
+  if (version > 1) attempts.unshift(rollEmail(cleanRoll, version))
+  for (let v = 5; v >= 2; v--) {
+    const em = rollEmail(cleanRoll, v)
+    if (!attempts.includes(em)) attempts.push(em)
+  }
+
+  let lastErr = null
+  for (const email of attempts) {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password)
+      await setUser(cred.user)
+      await getRegistration()
+      return session
+    } catch (e) {
+      lastErr = e
+      if (e.code !== 'auth/invalid-credential' && e.code !== 'auth/wrong-password' && e.code !== 'auth/user-not-found') {
+        throw e
+      }
+    }
+  }
+  throw lastErr || new Error('Invalid roll number or password.')
 }
 
 /** Organiser login (the /admin screen): admin ID + password. */
@@ -138,74 +204,18 @@ export async function logout() {
   await setUser(null)
 }
 
-/** Creates the student's login (roll number + password) and signs them in.
- *  If a participant was deleted by admin, this enables them to register again with any password seamlessly. */
-export async function createAccount(roll, password) {
+/** Creates the student's login (roll number + password) and signs them in. */
+export async function requestEnrollmentCode(roll, email) {
+  return api('request-enrollment', { roll, email })
+}
+
+export async function createAccount(roll, password, code) {
   if (!configured) throw new Error('The site is not connected to Firebase yet.')
+  if (!code) throw new Error('Verify your official student email before creating an account.')
   const cleanRoll = String(roll).trim().toUpperCase()
-  let version = await getRollVersion(cleanRoll)
-  let email = rollEmail(cleanRoll, version)
-  let user = null
-
-  // If already signed in as this roll:
-  if (auth.currentUser && auth.currentUser.email && auth.currentUser.email.startsWith(cleanRoll.toLowerCase())) {
-    try {
-      const snap = await fs.getDoc(fs.doc(db, 'registrations', auth.currentUser.uid))
-      if (snap.exists() && snap.data()?.payment === 'paid') {
-        await setUser(auth.currentUser)
-        return session
-      }
-      // Registration was deleted by admin or not paid -> update password and continue!
-      await updatePassword(auth.currentUser, password).catch(() => {})
-      await setUser(auth.currentUser)
-      return session
-    } catch (_) {}
-  }
-
-  // Try creating new user with the active roll version
-  try {
-    user = (await createUserWithEmailAndPassword(auth, email, password)).user
-  } catch (e) {
-    if (e.code === 'auth/email-already-in-use') {
-      // 1. Try signing in with the provided password
-      let signedIn = false
-      try {
-        const cred = await signInWithEmailAndPassword(auth, email, password)
-        user = cred.user
-        signedIn = true
-        const snap = await fs.getDoc(fs.doc(db, 'registrations', user.uid))
-        if (snap.exists() && snap.data()?.payment === 'paid') {
-          await setUser(user)
-          throw new Error('This roll number is already registered. Log in with your roll number and password.')
-        }
-      } catch (signInErr) {
-        if (signInErr.message?.includes('already registered')) throw signInErr
-        // 2. If password didn't match old account or was deleted, provision a fresh versioned account so user can register again!
-        let nextVersion = version + 1
-        for (let tries = 0; tries < 5; tries++) {
-          const nextEmail = rollEmail(cleanRoll, nextVersion)
-          try {
-            user = (await createUserWithEmailAndPassword(auth, nextEmail, password)).user
-            fs.setDoc(fs.doc(db, 'config', 'roll_versions'), { [cleanRoll]: nextVersion }, { merge: true }).catch(() => {})
-            break
-          } catch (err2) {
-            if (err2.code === 'auth/email-already-in-use') {
-              nextVersion++
-            } else {
-              throw err2
-            }
-          }
-        }
-      }
-      if (!user && !signedIn) {
-        throw new Error('This roll number is already registered. Log in with your roll number and password.')
-      }
-    } else {
-      throw e
-    }
-  }
-
-  await setUser(user)
+  const enrolled = await api('complete-enrollment', { roll: cleanRoll, password, code })
+  const credential = await signInWithCustomToken(auth, enrolled.token)
+  await setUser(credential.user)
   return session
 }
 
@@ -225,12 +235,18 @@ const COURSES = { A: 'B.Tech', D: 'M.Tech', E: 'MBA', F: 'MCA' }
 const ROMAN = { I: '1', II: '2', III: '3', IV: '4' }
 const titleCase = s => String(s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 
+const studentLookupCache = new Map()
+
 /** Student details from the college records (fetched via /api/lookup on server, with direct fallback). */
 export async function lookupStudent(roll) {
   const norm = String(roll || '').trim().toUpperCase()
+  if (studentLookupCache.has(norm)) return studentLookupCache.get(norm)
   try {
     const s = await api('lookup', { roll: norm })
-    if (s && s.name) return s
+    if (s && s.name) {
+      studentLookupCache.set(norm, s)
+      return s
+    }
   } catch (err) {
     console.warn('/api/lookup unavailable, using direct student API fallback:', err.message)
   }
@@ -247,7 +263,7 @@ export async function lookupStudent(roll) {
   const d = await res.json().catch(() => ({}))
   if (!d.success || !d.name) throw new Error('No student found with this roll number. Check it and try again.')
 
-  return {
+  const parsed = {
     roll: String(d.roll_no || norm).trim().toUpperCase(),
     name: titleCase(String(d.name).trim()),
     course: COURSES[norm[5]] || 'B.Tech',
@@ -255,64 +271,24 @@ export async function lookupStudent(roll) {
     year: ROMAN[String(d.semester || '').split('/')[0].trim()] || '1',
     email: String(d.student_email || '')
   }
+  studentLookupCache.set(norm, parsed)
+  return parsed
 }
 
 /** Asks the server to check PayU for this student's payment and issue the ticket. Returns the registration or null. */
 export async function confirmPayment(txnid, orderContext) {
   let status = 'unpaid'
-  let details = null
   try {
     const res = await api('confirm-payment', txnid ? { txnid } : {})
     status = res?.status
-    details = res
   } catch (err) {
     console.warn('confirm-payment API call:', err.message)
   }
 
-  if (status !== 'paid' && !orderContext?.completed) return null
+  if (status !== 'paid') return null
   try { localStorage.removeItem(REG_CACHE_KEY(session.user.uid)) } catch (_) {}
-  let reg = await getRegistration()
-
-  // If payment succeeded but server could not write to Firestore, create registration directly
-  if (!reg && session.user) {
-    try {
-      const statsRef = fs.doc(db, 'config', 'stats')
-      const statsSnap = await fs.getDoc(statsRef).catch(() => null)
-      const seq = (statsSnap?.exists() ? (statsSnap.data()?.paid || 0) + 1 : Number(Date.now().toString().slice(-3)))
-      const yy = String(new Date().getFullYear()).slice(-2)
-      const s = orderContext?.prefill || {}
-
-      const regData = {
-        roll: s.roll || session.user.email.split('@')[0].toUpperCase(),
-        name: s.name || 'Student',
-        course: s.course || '',
-        dept: s.branch || '',
-        year: s.year || '1',
-        email: s.email || session.user.email,
-        payment: 'paid',
-        ticket: 'issued',
-        txn: details?.paymentId || txnid || `PAYU_${Date.now()}`,
-        orderId: txnid || '',
-        txnid: txnid || '',
-        amount: Number(orderContext?.amount || 100),
-        currency: 'INR',
-        method: details?.mode || 'PayU',
-        payerEmail: s.email || session.user.email,
-        paidAt: new Date(),
-        seq,
-        regId: `CA${yy}-${String(seq).padStart(4, '0')}`,
-        ticketId: `TK-${String(seq).padStart(2, '0')}`,
-        registeredAt: new Date()
-      }
-
-      await fs.setDoc(fs.doc(db, 'registrations', session.user.uid), regData)
-      session.reg = { uid: session.user.uid, ...regData }
-      try { localStorage.setItem(REG_CACHE_KEY(session.user.uid), JSON.stringify(session.reg)) } catch (_) {}
-      return session.reg
-    } catch (e) {
-      console.warn('Could not save client registration:', e)
-    }
-  }
+  const reg = await getRegistration()
+  if (!reg || reg.payment !== 'paid') throw new Error('Payment was verified, but the registration is still being issued. Please refresh shortly.')
   return reg
 }
 
@@ -430,11 +406,3 @@ export async function payWithPayU({ name, description, prefill = {} }) {
 
   return new Promise(() => {})
 }
-
-// Seed admin settings
-setTimeout(() => {
-  if (configured && db) {
-    fs.setDoc(fs.doc(db, 'config', 'event'), { fee: 100, regOpen: true, capacity: 150 }, { merge: true })
-      .catch(e => console.error('Failed to seed config', e));
-  }
-}, 3000);

@@ -16,7 +16,10 @@ export default handler(async req => {
   const { uid } = await student(req)
   if (db) {
     const regRef = db.doc(`registrations/${uid}`)
-    if ((await regRef.get()).exists) return { status: 'paid' }
+    const regSnap = await regRef.get()
+    if (regSnap.exists && regSnap.data()?.payment === 'paid') {
+      return { status: 'paid', ...regSnap.data() }
+    }
   }
 
   // Check specific txnid if provided in request, else query all user orders
@@ -44,7 +47,13 @@ export default handler(async req => {
       continue
     }
 
-    if (!details) continue
+    if (!details) {
+      if (order.status === 'paid') {
+        details = { status: 'success', mode: 'UPI', amount: order.amount, txnid, mihpayid: order.paymentId || txnid }
+      } else {
+        continue
+      }
+    }
     const status = String(details.status || '').toLowerCase()
     if (status !== 'success' && status !== 'captured') continue
 
@@ -54,12 +63,14 @@ export default handler(async req => {
     }
 
     if (db) await issue(uid, o.ref, order, details)
+    const freshReg = db ? (await db.doc(`registrations/${uid}`).get()).data() : {}
     return {
       status: 'paid',
       paymentId: details.mihpayid || txnid,
       mode: details.mode,
       amount: details.amount,
-      txnid
+      txnid,
+      ...freshReg
     }
   }
 
@@ -74,12 +85,20 @@ export default handler(async req => {
     if (details) {
       const status = String(details.status || '').toLowerCase()
       if (status === 'success' || status === 'captured') {
+        if (db) {
+          const orderRef = db.doc(`orders/${specificTxnid}`)
+          const orderSnap = await orderRef.get()
+          const orderData = orderSnap.exists ? orderSnap.data() : { uid, txnid: specificTxnid, student: {} }
+          await issue(uid, orderSnap.exists ? orderRef : null, orderData, details)
+        }
+        const freshReg = db ? (await db.doc(`registrations/${uid}`).get()).data() : {}
         return {
           status: 'paid',
           paymentId: details.mihpayid || specificTxnid,
           mode: details.mode,
           amount: details.amount,
-          txnid: specificTxnid
+          txnid: specificTxnid,
+          ...freshReg
         }
       }
     }
@@ -93,32 +112,42 @@ export function issue(uid, orderRef, order, p) {
   return db.runTransaction(async tx => {
     const regRef = db.doc(`registrations/${uid}`), statsRef = db.doc('config/stats'), cfgRef = db.doc('config/event')
     const [reg, stats, cfg] = await Promise.all([tx.get(regRef), tx.get(statsRef), tx.get(cfgRef)])
-    if (reg.exists) return
+    if (reg.exists && reg.data()?.payment === 'paid') return
     const paid = (stats.data()?.paid ?? 0) + 1, seq = (stats.data()?.seq ?? 0) + 1
-    const s = order.student, yy = String(cfg.data()?.edition || new Date().getFullYear()).slice(-2)
-    const txnid = order.txnid || orderRef.id
+    const s = order.student || (reg.exists ? reg.data() : {})
+    const yy = String(cfg.data()?.edition || new Date().getFullYear()).slice(-2)
+    const txnid = order.txnid || (orderRef ? orderRef.id : p.txnid)
     const payuId = p.mihpayid || txnid
 
     tx.set(statsRef, { paid, seq }, { merge: true })
-    tx.update(orderRef, { status: 'paid', paymentId: payuId })
-    tx.set(regRef, {
-      roll: s.roll, name: s.name, course: s.course, dept: s.branch, year: s.year, email: s.email,
-      college: cfg.data()?.college ?? '', phone: p.phone ? String(p.phone).replace(/^\+91/, '') : (s.phone || ''),
-      payment: 'paid', ticket: 'issued',
+    if (orderRef) tx.update(orderRef, { status: 'paid', paymentId: payuId })
+    const regData = {
+      uid,
+      roll: s.roll || order.roll || '',
+      name: s.name || '',
+      course: s.course || '',
+      dept: s.branch || s.dept || '',
+      year: s.year || '',
+      email: s.email || '',
+      college: s.college || cfg.data()?.college || '',
+      phone: p.phone ? String(p.phone).replace(/^\+91/, '') : (s.phone || ''),
+      payment: 'paid',
+      ticket: 'issued',
       // Exactly what PayU recorded
       txn: payuId,
-      orderId: orderRef.id,
+      orderId: orderRef ? orderRef.id : txnid,
       txnid: txnid,
-      amount: Number(p.amount || order.amount),
+      amount: Number(p.amount || p.amt || order.amount || 1),
       currency: 'INR',
-      method: PAYU_MODES[p.mode] || p.mode || 'PayU',
+      method: PAYU_MODES[p.mode] || p.mode || 'UPI',
       methodDetail: p.bank_ref_num || p.bankcode || p.mode || '',
       payerEmail: p.email || s.email || '',
-      paidAt: p.addedon ? new Date(p.addedon) : new Date(),
+      paidAt: p.addedon ? new Date(p.addedon) : null,
       seq,
       regId: `CA${yy}-${String(seq).padStart(4, '0')}`,
       ticketId: `TK-${String(seq).padStart(2, '0')}`,
-      registeredAt: FieldValue.serverTimestamp()
-    })
+      registeredAt: reg.exists && reg.data()?.createdAt ? reg.data().createdAt : FieldValue.serverTimestamp()
+    }
+    tx.set(regRef, regData, { merge: true })
   })
 }

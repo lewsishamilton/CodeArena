@@ -25,7 +25,7 @@ for (const envFile of ['.env.local', '.env']) {
 
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
 if (serviceAccount && !getApps().length) initializeApp({ credential: cert(JSON.parse(serviceAccount)) })
-export const db = serviceAccount ? getFirestore() : null
+export const db = getApps().length ? getFirestore() : null
 export { FieldValue }
 
 export class HttpError extends Error {
@@ -48,25 +48,12 @@ export async function student(req) {
   const token = String(req.headers.authorization || '').replace(/^Bearer /, '').trim()
   if (!token) throw new HttpError(401, 'Please log in to continue.')
 
+  if (!getApps().length) throw new HttpError(503, 'Authentication service is not configured.')
   let decoded
-  if (getApps().length) {
-    try {
-      decoded = await getAuth().verifyIdToken(token)
-    } catch {
-      throw new HttpError(401, 'Your login expired. Log in again.')
-    }
-  } else {
-    // If Admin SDK is not initialized, decode the JWT payload
-    try {
-      const parts = token.split('.')
-      if (parts.length === 3) {
-        decoded = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
-        decoded.uid = decoded.user_id || decoded.sub
-      }
-    } catch (_) {}
-    if (!decoded?.uid) {
-      throw new HttpError(401, 'Invalid or expired login session.')
-    }
+  try {
+    decoded = await getAuth().verifyIdToken(token)
+  } catch {
+    throw new HttpError(401, 'Your login expired. Log in again.')
   }
 
   const email = decoded.email || req.body?.email || ''
@@ -79,8 +66,9 @@ export async function student(req) {
 /* ---------- PayU Payment Gateway ---------- */
 export const PAYU_KEY = process.env.PAYU_KEY || process.env.PAYU_MERCHANT_KEY || ''
 export const PAYU_SALT = process.env.PAYU_SALT || process.env.PAYU_MERCHANT_SALT || ''
-export const PAYU_ENV = (process.env.PAYU_ENV || 'production').toLowerCase()
-export const PAYU_IS_PROD = PAYU_ENV !== 'test' && PAYU_ENV !== 'sandbox'
+// Force production environment to bypass any stuck system env variables
+export const PAYU_ENV = 'production'
+export const PAYU_IS_PROD = true
 export const PAYU_POST_URL = process.env.PAYU_POST_URL || (PAYU_IS_PROD
   ? 'https://info.payu.in/merchant/postservice.php?form=2'
   : 'https://test.payu.in/merchant/postservice.php?form=2')
@@ -240,8 +228,9 @@ async function fetchStudent(roll) {
 export async function checkCanRegister(roll) {
   if (!/^[A-Z0-9]{10}$/.test(roll)) throw new HttpError(400, 'Enter a valid 10-character roll number.')
   if (db) {
-    const taken = await db.collection('registrations').where('roll', '==', roll).limit(1).get()
-    if (!taken.empty) throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
+    const taken = await db.collection('registrations').where('roll', '==', roll).get()
+    const paidDoc = taken.docs.find(d => d.data()?.payment === 'paid')
+    if (paidDoc) throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
   }
   let cfg = {}
   if (db) {
@@ -256,7 +245,7 @@ export async function checkCanRegister(roll) {
       if (cfg.capacity && paid >= cfg.capacity) throw new HttpError(409, 'All seats are taken.')
     } catch (_) {}
   }
-  if (cfg.fee === undefined) cfg.fee = 299
+  if (cfg.fee === undefined) cfg.fee = 1
   const s = await fetchStudent(roll)
   if (cfg.eligibleYears?.length && !cfg.eligibleYears.map(String).includes(s.year)) {
     throw new HttpError(403, `This contest is open to year ${cfg.eligibleYears.join(' & ')} students only.`)

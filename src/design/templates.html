@@ -1,7 +1,7 @@
-<template id="page-index" data-title="CODE//ARENA — Inter-college coding competition" data-body-page="landing">
+<template id="page-index" data-title="CODE ARENA — Inter-college coding competition" data-body-page="landing">
 <header class="site-nav">
   <div class="container">
-    <a class="brand" href="/" aria-label="Home"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/" aria-label="Home"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <nav class="links" aria-label="Primary">
       <a href="#about">About</a>
       <a href="#competition">Competition</a>
@@ -11,7 +11,7 @@
     </nav>
     <div class="actions">
       <a class="btn btn-ghost btn-sm" href="/admin" data-admin-link>Admin</a>
-      <button class="btn btn-ghost btn-sm" data-login>Login</button>
+      <a class="btn btn-ghost btn-sm" href="/dashboard" data-dashboard-link><i data-icon="user"></i> Dashboard</a>
       <a class="btn btn-primary btn-sm" href="/register">Register now</a>
       <button class="btn btn-secondary btn-sm icon-btn nav-toggle" aria-label="Open menu" aria-expanded="false"><i data-icon="menu"></i></button>
     </div>
@@ -23,7 +23,8 @@
     <a href="#schedule">Schedule</a>
     <a href="#faq">FAQ</a>
     <a href="/admin" data-admin-link>Admin</a>
-    <button class="btn btn-secondary btn-lg" data-login>Login</button>
+    <a href="/dashboard" data-dashboard-link>Dashboard</a>
+    <a class="btn btn-primary btn-sm" href="/register" style="margin-top:16px;width:100%;">Register now</a>
   </div>
 </header>
 
@@ -37,7 +38,6 @@
         <p class="hero-sub">Three challenges. One arena. A chance to prove what you can build.</p>
         <div class="hero-cta">
           <a class="btn btn-primary btn-lg" href="/register">Register now <i data-icon="arrow"></i></a>
-          <a class="btn btn-secondary btn-lg" href="#competition">Explore competition</a>
         </div>
         <dl class="hero-meta">
           <div><dt>Date</dt><dd><span data-cfg="date">—</span></dd></div>
@@ -82,7 +82,7 @@
         <div>
           <h2 style="font-size:clamp(30px,3.6vw,44px);letter-spacing:-0.035em;max-width:760px">A two-hour sprint for students who think in code.</h2>
           <div class="about-copy" style="margin-top:28px">
-            <p><span data-cfg="name">CODE//ARENA</span> is an inter-college competitive programming contest. Every participant gets the same three problems, the same clock and the same judge — what separates the board is how cleanly you think under pressure.</p>
+            <p><span data-cfg="name">CODE ARENA</span> is an inter-college competitive programming contest. Every participant gets the same three problems, the same clock and the same judge — what separates the board is how cleanly you think under pressure.</p>
             <p>It's built for every level. Problem A is solvable by anyone comfortable with loops; Problem C will make experienced competitive programmers slow down. Partial progress still counts on the leaderboard.</p>
           </div>
         </div>
@@ -102,16 +102,15 @@
       <div class="section-head">
         <div class="eyebrow"><b>02</b>How it works</div>
         <div>
-          <h2>From sign-up to scoreboard in five steps.</h2>
+          <h2>From sign-up to scoreboard in four steps.</h2>
           <p>Everything happens in one place — your ticket, your arena seat and your certificate live in the student dashboard.</p>
         </div>
       </div>
-      <ol class="steps">
-        <li><span class="node">01</span><h3>Register</h3><p>Enter your roll number, check your details and create a password.</p></li>
-        <li><span class="node">02</span><h3>Pay the fee</h3><p>Pay the <span data-cfg="fee">—</span> registration fee online.</p></li>
-        <li><span class="node">03</span><h3>Get your ticket</h3><p>Your ticket is issued instantly to your dashboard.</p></li>
-        <li><span class="node">04</span><h3>Report</h3><p>Show your ticket and college ID at the venue and take your seat.</p></li>
-        <li><span class="node">05</span><h3>Compete</h3><p>Solve three problems in the arena before the clock runs out.</p></li>
+      <ol class="steps" aria-label="How it works steps">
+        <li><span class="node">01</span><h3>Register</h3><p>Sign in with Google and fill in your college details.</p></li>
+        <li><span class="node">02</span><h3>Pay the fee</h3><p>Pay <span data-cfg="fee">—</span> online by UPI, card or net banking.</p></li>
+        <li><span class="node">03</span><h3>Get your ticket</h3><p>A QR ticket is issued instantly to your dashboard.</p></li>
+        <li><span class="node">04</span><h3>Compete</h3><p>Solve three problems in the arena before the clock runs out.</p></li>
       </ol>
     </div>
   </section>
@@ -121,16 +120,118 @@
     <div class="container">
       <div class="section-head">
         <div class="eyebrow"><b>03</b>Languages</div>
-        <div><h2>Write in the language you think in.</h2><p>Judges review every submission with the settings below.</p></div>
+        <div><h2>Write in the language you think in.</h2><p>The judge compiles and runs every submission in an isolated sandbox with the settings below.</p></div>
       </div>
       <div class="lang-table table-wrap">
         <table class="table">
-          <thead><tr><th>Language</th><th>Compiler / runtime</th><th>Flags</th><th>Time limit</th></tr></thead>
+          <thead>
+            <tr>
+              <th><span class="th-badge"><i data-icon="code"></i> Language</span></th>
+              <th><span class="th-badge"><i data-icon="settings"></i> Compiler / Runtime</span></th>
+            </tr>
+          </thead>
           <tbody>
-            <tr><td><span class="lang-name"><span class="lang-glyph">C</span>C</span></td><td>GCC 13.2</td><td><span class="code-chip">-O2 -std=c17 -lm</span></td><td>1×</td></tr>
-            <tr><td><span class="lang-name"><span class="lang-glyph">C++</span>C++</span></td><td>G++ 13.2</td><td><span class="code-chip">-O2 -std=c++17</span></td><td>1×</td></tr>
-            <tr><td><span class="lang-name"><span class="lang-glyph">Py</span>Python</span></td><td>CPython 3.12</td><td><span class="code-chip">python3 main.py</span></td><td>3×</td></tr>
-            <tr><td><span class="lang-name"><span class="lang-glyph">J</span>Java</span></td><td>OpenJDK 21</td><td><span class="code-chip">class Main</span></td><td>2×</td></tr>
+            <tr>
+              <td>
+                <div class="lang-item">
+                  <span class="lang-glyph lang-glyph-c">
+                    <svg viewBox="0 0 128 128" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="#00599c" d="M118.766 95.82c.89-1.543 1.441-3.28 1.441-4.843V36.78c0-1.558-.55-3.297-1.441-4.84l-55.32 31.94Zm0 0"/>
+                      <path fill="#004482" d="m68.36 126.586 46.933-27.094c1.352-.781 2.582-2.129 3.473-3.672l-55.32-31.94L8.12 95.82c.89 1.543 2.121 2.89 3.473 3.672l46.933 27.094c2.703 1.562 7.13 1.562 9.832 0Zm0 0"/>
+                      <path fill="#659ad2" d="M118.766 31.941c-.891-1.546-2.121-2.894-3.473-3.671L68.359 1.172c-2.703-1.563-7.129-1.563-9.832 0L11.594 28.27C8.89 29.828 6.68 33.66 6.68 36.78v54.196c0 1.562.55 3.3 1.441 4.843L63.445 63.88Zm0 0"/>
+                      <path fill="#fff" d="M64 26.035c-20.867 0-37.843 16.977-37.843 37.844s16.976 37.844 37.843 37.844c13.465 0 26.024-7.247 32.77-18.91L80.395 73.335c-3.38 5.84-9.66 9.465-16.395 9.465-10.433 0-18.922-8.488-18.922-18.922 0-10.434 8.49-18.922 18.922-18.922 6.73 0 13.017 3.629 16.39 9.465l16.38-9.477C90.02 33.282 77.465 26.035 64 26.035z"/>
+                    </svg>
+                  </span>
+                  <span>C</span>
+                </div>
+              </td>
+              <td>
+                <div class="compiler-item">
+                  <span class="compiler-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    <strong>GCC</strong> <span class="comp-ver">13.2</span>
+                  </span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="lang-item">
+                  <span class="lang-glyph lang-glyph-cpp">
+                    <svg viewBox="0 0 128 128" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="#00599c" d="M118.766 95.82c.89-1.543 1.441-3.28 1.441-4.843V36.78c0-1.558-.55-3.297-1.441-4.84l-55.32 31.94Zm0 0"/>
+                      <path fill="#004482" d="m68.36 126.586 46.933-27.094c1.352-.781 2.582-2.129 3.473-3.672l-55.32-31.94L8.12 95.82c.89 1.543 2.121 2.89 3.473 3.672l46.933 27.094c2.703 1.562 7.13 1.562 9.832 0Zm0 0"/>
+                      <path fill="#659ad2" d="M118.766 31.941c-.891-1.546-2.121-2.894-3.473-3.671L68.359 1.172c-2.703-1.563-7.129-1.563-9.832 0L11.594 28.27C8.89 29.828 6.68 33.66 6.68 36.78v54.196c0 1.562.55 3.3 1.441 4.843L63.445 63.88Zm0 0"/>
+                      <path fill="#fff" d="M63.445 26.035c-20.867 0-37.843 16.977-37.843 37.844s16.976 37.844 37.843 37.844c13.465 0 26.024-7.247 32.77-18.91L79.84 73.335c-3.38 5.84-9.66 9.465-16.395 9.465-10.433 0-18.922-8.488-18.922-18.922 0-10.434 8.49-18.922 18.922-18.922 6.73 0 13.017 3.629 16.39 9.465l16.38-9.477c-6.75-11.664-19.305-18.91-32.77-18.91zM92.88 57.57v4.207h-4.207v4.203h4.207v4.207h4.203V65.98h4.203v-4.203h-4.203V57.57H92.88zm15.766 0v4.207h-4.204v4.203h4.204v4.207h4.207V65.98h4.203v-4.203h-4.203V57.57h-4.207z"/>
+                    </svg>
+                  </span>
+                  <span>C++</span>
+                </div>
+              </td>
+              <td>
+                <div class="compiler-item">
+                  <span class="compiler-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    <strong>G++</strong> <span class="comp-ver">13.2</span>
+                  </span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="lang-item">
+                  <span class="lang-glyph lang-glyph-py">
+                    <svg viewBox="0 0 128 128" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <linearGradient id="py-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#387EB8"/>
+                          <stop offset="100%" stop-color="#366994"/>
+                        </linearGradient>
+                        <linearGradient id="py-yellow" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#FFE873"/>
+                          <stop offset="100%" stop-color="#FFD43B"/>
+                        </linearGradient>
+                      </defs>
+                      <path fill="url(#py-blue)" d="M63.391 12.248c-4.222.02-8.252.379-11.8 1.007-10.45 1.846-12.346 5.71-12.346 12.837v9.411h24.693v3.137H29.977c-7.176 0-13.46 4.313-15.426 12.521-2.268 9.405-2.368 15.275 0 25.096 1.755 7.311 5.947 12.519 13.124 12.519h8.491V77.494c0-8.151 7.051-15.34 15.426-15.34h24.665c6.866 0 12.346-5.654 12.346-12.548V26.093c0-6.693-5.646-11.72-12.346-12.837-4.244-.706-8.645-1.027-12.866-1.008zM50.037 19.817c2.55 0 4.634 2.117 4.634 4.721 0 2.593-2.083 4.69-4.634 4.69-2.56 0-4.633-2.097-4.633-4.69-.001-2.604 2.073-4.721 4.633-4.721z"/>
+                      <path fill="url(#py-yellow)" d="M91.682 38.64v10.966c0 8.5-7.208 15.655-15.426 15.655H51.591c-6.756 0-12.346 5.783-12.346 12.549v23.515c0 6.691 5.818 10.628 12.346 12.547 7.816 2.297 15.312 2.713 24.665 0 6.216-1.801 12.346-5.423 12.346-12.547v-9.412H63.938v-3.138h37.012c7.176 0 9.852-5.005 12.348-12.519 2.578-7.735 2.467-15.174 0-25.096-1.774-7.145-5.161-12.521-12.348-12.521h-9.268zM77.809 98.187c2.561 0 4.634 2.097 4.634 4.692 0 2.602-2.074 4.719-4.634 4.719-2.55 0-4.633-2.117-4.633-4.719 0-2.595 2.083-4.692 4.633-4.692z"/>
+                    </svg>
+                  </span>
+                  <span>Python</span>
+                </div>
+              </td>
+              <td>
+                <div class="compiler-item">
+                  <span class="compiler-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    <strong>CPython</strong> <span class="comp-ver">3.12</span>
+                  </span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="lang-item">
+                  <span class="lang-glyph lang-glyph-java">
+                    <svg viewBox="0 0 128 128" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="#5382A1" d="M47.617 98.12s-4.767 2.774 3.397 3.71c9.892 1.13 14.947.968 25.845-1.092 0 0 2.871 1.795 6.873 3.351-24.439 10.47-55.308-.607-36.115-5.969zm-2.988-13.665s-5.348 3.959 2.823 4.805c10.567 1.091 18.91 1.18 33.354-1.6 0 0 1.993 2.025 5.132 3.131-29.542 8.64-62.446.68-41.309-6.336z"/>
+                      <path fill="#EA2D2E" d="M69.802 61.271c6.025 6.935-1.58 13.17-1.58 13.17s15.289-7.891 8.269-17.777c-6.559-9.215-11.587-13.792 15.635-29.58 0 .001-42.731 10.67-22.324 34.187z"/>
+                      <path fill="#5382A1" d="M102.123 108.229s3.529 2.91-3.888 5.159c-14.102 4.272-58.706 5.56-71.094.171-4.451-1.938 3.899-4.625 6.526-5.192 2.739-.593 4.303-.485 4.303-.485-4.953-3.487-32.013 6.85-13.743 9.815 49.821 8.076 90.817-3.637 77.896-9.468zM49.912 70.294s-22.686 5.389-8.033 7.348c6.188.828 18.518.638 30.011-.326 9.39-.789 18.813-2.474 18.813-2.474s-3.308 1.419-5.704 3.053c-23.042 6.061-67.544 3.238-54.731-2.958 10.832-5.239 19.644-4.643 19.644-4.643zm40.697 22.747c23.421-12.167 12.591-23.86 5.032-22.285-1.848.385-2.677.72-2.677.72s.688-1.079 2-1.543c14.953-5.255 26.451 15.503-4.823 23.725 0-.002.359-.327.468-.617z"/>
+                      <path fill="#EA2D2E" d="M76.491 1.587S89.459 14.563 64.188 34.51c-20.266 16.006-4.621 25.13-.007 35.559-11.831-10.673-20.509-20.07-14.688-28.815C58.041 28.42 81.722 22.195 76.491 1.587z"/>
+                      <path fill="#5382A1" d="M52.214 126.021c22.476 1.437 57-.8 57.817-11.436 0 0-1.571 4.032-18.577 7.231-19.186 3.612-42.854 3.191-56.887.874 0 .001 2.875 2.381 17.647 3.331z"/>
+                    </svg>
+                  </span>
+                  <span>Java</span>
+                </div>
+              </td>
+              <td>
+                <div class="compiler-item">
+                  <span class="compiler-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    <strong>OpenJDK</strong> <span class="comp-ver">21</span>
+                  </span>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -159,9 +260,9 @@
     <div class="container">
       <div class="section-head">
         <div class="eyebrow"><b>05</b>Rules</div>
-        <div><h2>Short rules, strictly applied.</h2></div>
+        <div><h2>Short rules, strictly applied.</h2><p>Terms and Conditions.</p></div>
       </div>
-      <div class="rules-grid">
+      <div class="rules-wrap">
         <ol class="rules-list">
           <li><strong>Schedule &amp; Attendance</strong>Follow the schedule and instructions shared by the organizers. Join sessions on time and let the organizers know if you can’t attend.</li>
           <li><strong>No Communication</strong>Do not communicate with other participants or share answers during the exam.</li>
@@ -180,7 +281,7 @@
             <li>Wrong attempts only count on problems you eventually solve.</li>
             <li>A solved problem never drops below half its points.</li>
             <li>Ties are broken by the time of your last accepted submission.</li>
-            <li>Every submission is reviewed by the judges.</li>
+            <li>Compilation errors are not penalised.</li>
           </ul>
         </aside>
       </div>
@@ -209,12 +310,12 @@
         <div><h2>Questions, answered.</h2></div>
       </div>
       <div class="faq">
-        <details open><summary>Who can participate?</summary><p><span data-cfg="eligibility">—</span>. Seats are limited to <span data-cfg="capacity">—</span> — first come, first served. Bring your college ID.</p></details>
-        <details><summary>Do I need competitive programming experience?</summary><p>No. Problem A is designed for anyone comfortable with loops and conditions. Problems B and C reward more practice, but partial progress still ranks.</p></details>
-        <details><summary>Can I bring my own laptop?</summary><p>No — every participant uses a lab system with the same arena setup, so the playing field stays level.</p></details>
+        <details open><summary>Who can participate?</summary><p>2nd and 3rd year students only. Seats are limited to 60 — first come, first served.</p></details>
+        <details><summary>Can I bring my own laptop?</summary><p>Yes, participants are encouraged to bring their own laptops. However, if you are unable to bring one, computers will be provided at the venue for you to compete.</p></details>
         <details><summary>What happens if my payment fails?</summary><p>No money is deducted for a failed payment. You can retry immediately from the registration page, and your details are kept.</p></details>
-        <details><summary>Is the registration fee refundable?</summary><p>Fees are refundable up to 7 days before the event. After that, you can transfer your seat to another student by contacting the organisers.</p></details>
-        <details><summary>When will results be announced?</summary><p>Results are published at the prize ceremony and appear on the leaderboard and in your dashboard.</p></details>
+        <details><summary>Is the registration fee refundable?</summary><p>No, the registration fee is strictly non-refundable once paid, as seats and resources are reserved immediately upon successful registration.</p></details>
+        <details><summary>Which programming languages are supported?</summary><p>You can code in C (GCC 13.2), C++ (G++ 13.2), Python (CPython 3.12), or Java (OpenJDK 21). Standard libraries are pre-installed and available in the contest sandbox.</p></details>
+        <details><summary>When will results and certificates be announced?</summary><p>Provisional standings are visible during the contest. Final results and prize winners will be declared during the closing ceremony, and e-Certificates will be available in your dashboard.</p></details>
       </div>
     </div>
   </section>
@@ -231,28 +332,28 @@
   <div class="container">
     <div class="footer-grid">
       <div>
-        <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
-        <p class="muted" style="margin-top:14px;max-width:320px">Organised by the <span data-cfg="organiser">Department of Computer Science &amp; Engineering</span>.</p>
+        <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
+        <p class="muted" style="margin-top:14px;max-width:320px">Organised by <span data-cfg="organiser">—</span>.</p>
       </div>
       <div><h4>Event</h4><ul><li><a href="#about">About</a></li><li><a href="#schedule">Schedule</a></li><li><a href="#rules">Rules</a></li><li><a href="/leaderboard">Leaderboard</a></li></ul></div>
       <div><h4>Participants</h4><ul><li><a href="/register">Register</a></li><li><a href="/dashboard">Dashboard</a></li><li><a href="/ticket">My ticket</a></li><li><a href="/certificate">Certificates</a></li></ul></div>
       <div><h4>Organisers</h4><ul><li><a href="/admin">Admin console</a></li><li><a href="#faq">Help &amp; FAQ</a></li></ul></div>
     </div>
-    <div class="footer-bottom"><span>© <span data-cfg="edition">2026</span> <span data-cfg="name">CODE//ARENA</span></span><span>Organised by <span data-cfg="organiser"></span></span></div>
+    <div class="footer-bottom"><span>© <span data-cfg="edition"></span> <span data-cfg="name">CODE ARENA</span></span><span>Organised by <span data-cfg="organiser">—</span></span></div>
   </div>
 </footer>
 </template>
-<template id="page-register" data-title="Register — CODE//ARENA" data-body-page="register">
+<template id="page-register" data-title="Register — CODE ARENA" data-body-page="register">
 <header class="simple-nav">
   <div class="container">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <div class="crumbs"><span class="muted">Registration</span><a class="btn btn-ghost btn-sm" href="/">Cancel</a></div>
   </div>
 </header>
 
 <main class="container">
   <div class="page-head">
-    <h1>Register for <span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span></h1>
+    <h1>Register for <span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span></h1>
     <p><span data-cfg="date">—</span> · <span data-cfg="venue">—</span> · <span data-cfg="seatsLeft">—</span> seats left</p>
   </div>
 
@@ -331,9 +432,19 @@
             </div>
           </div>
 
-          <div class="form-grid" style="margin-top:22px">
-            <div class="field"><label for="reg-pass">Create password</label><input class="input" id="reg-pass" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div>
-            <div class="field"><label for="reg-pass2">Confirm password</label><input class="input" id="reg-pass2" type="password" autocomplete="new-password"></div>
+          <div style="margin-top:22px">
+            <label for="reg-phone" style="display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:8px">Mobile Number <span style="color:var(--danger)">*</span></label>
+            <div style="display:flex;align-items:center;position:relative">
+              <span style="position:absolute;left:14px;font-size:14px;font-weight:600;color:var(--text-muted);pointer-events:none;z-index:2">+91</span>
+              <input class="input" id="reg-phone" name="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" autocomplete="tel" style="padding-left:52px;font-size:15px;letter-spacing:0.02em" required>
+            </div>
+            <p class="muted" style="font-size:12.5px;margin-top:6px" id="phone-hint">Enter your 10-digit mobile number to enable submit &amp; pay.</p>
+          </div>
+
+          <div class="form-grid" style="margin-top:16px">
+            <div class="field"><label for="reg-pass">Create password <span style="color:var(--danger)">*</span></label><input class="input" id="reg-pass" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></div>
+            <div class="field"><label for="reg-pass2">Confirm password <span style="color:var(--danger)">*</span></label><input class="input" id="reg-pass2" type="password" autocomplete="new-password"></div>
+            <div class="field span-2" id="reg-verification-field" hidden><label for="reg-verification-code">Email verification code</label><input class="input" id="reg-verification-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code from your official student email"><span class="hint">A verification code was sent to the official email shown above.</span></div>
           </div>
           <p class="muted" style="font-size:13px;margin-top:8px">You'll log in with your roll number and this password.</p>
 
@@ -380,7 +491,8 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-top:14px;font-size:13.5px">
               <div><span class="muted">Contest Pass:</span> <strong style="color:var(--text);margin-left:4px">1 Seat (Admit One)</strong></div>
               <div><span class="muted">Program:</span> <span id="pay-student-course" style="color:var(--text);margin-left:4px">—</span></div>
-              <div><span class="muted">Event:</span> <strong style="color:var(--text);margin-left:4px" data-cfg="name">CODE//ARENA</strong></div>
+              <div><span class="muted">Mobile:</span> <span id="pay-student-phone" style="color:var(--text);margin-left:4px">—</span></div>
+              <div><span class="muted">Event:</span> <strong style="color:var(--text);margin-left:4px" data-cfg="name">CODE ARENA</strong></div>
               <div><span class="muted">Venue:</span> <span style="color:var(--text);margin-left:4px" data-cfg="venue">—</span></div>
             </div>
 
@@ -463,6 +575,7 @@
         <div class="reg-actions" style="justify-content:center;flex-wrap:wrap">
           <a class="btn btn-primary" href="/ticket"><i data-icon="ticket"></i> View ticket</a>
           <a class="btn btn-secondary" href="/dashboard">Go to dashboard</a>
+          <button class="btn btn-ghost" data-signout><i data-icon="logout"></i> Sign out to register another student</button>
         </div>
       </section>
     </div>
@@ -470,7 +583,7 @@
     <aside class="card order-summary">
       <div class="card-head"><h3>Order summary</h3></div>
       <div class="card-body">
-        <div class="line"><span><span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span> · 1 seat</span><span data-cfg="fee">—</span></div>
+        <div class="line"><span><span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span> · 1 seat</span><span data-cfg="fee">—</span></div>
         <div class="line"><span>Convenience fee</span><span>₹0</span></div>
         <div class="line total"><span>Total</span><span data-cfg="fee">—</span></div>
         <hr class="divider" style="margin:16px 0">
@@ -480,10 +593,10 @@
   </div>
 </main>
 </template>
-<template id="page-ticket" data-title="Your ticket — CODE//ARENA" data-body-page="ticket">
+<template id="page-ticket" data-title="Your ticket — CODE ARENA" data-body-page="ticket">
 <header class="simple-nav">
   <div class="container">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <a class="btn btn-secondary btn-sm" href="/dashboard">Dashboard</a>
   </div>
 </header>
@@ -510,10 +623,10 @@
   </div>
 </main>
 </template>
-<template id="page-dashboard" data-title="Dashboard — CODE//ARENA" data-body-page="dashboard">
+<template id="page-dashboard" data-title="Dashboard — CODE ARENA" data-body-page="dashboard">
 <div class="app">
   <aside class="sidebar" aria-label="Student navigation">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <nav class="side-nav">
       <a href="#overview"><i data-icon="home"></i>Overview</a>
       <a href="#registration"><i data-icon="file"></i>My registration</a>
@@ -524,7 +637,11 @@
       <a href="#profile"><i data-icon="user"></i>Profile</a>
     </nav>
     <div class="side-foot">
-      <div class="side-user"><span class="avatar" data-me-initials></span><div><span data-me="name"></span><small data-me="regId">—</small></div></div>
+      <div class="side-user">
+        <span class="avatar" data-me-initials></span>
+        <div><span data-me="name"></span><small data-me="regId">—</small></div>
+        <button class="btn btn-ghost btn-sm" data-signout title="Sign out" style="margin-left:auto;padding:6px 8px"><i data-icon="logout"></i></button>
+      </div>
     </div>
   </aside>
   <div class="scrim"></div>
@@ -553,7 +670,7 @@
     <!-- OVERVIEW -->
     <section class="view" data-view="overview">
       <div class="view-head">
-        <div><h2 id="greeting">Welcome back</h2><p>Your seat for <span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span> is confirmed. Here's everything you need for event day.</p></div>
+        <div><h2 id="greeting">Welcome back</h2><p>Your seat for <span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span> is confirmed. Here's everything you need for event day.</p></div>
         <a class="btn btn-secondary btn-sm" href="/ticket"><i data-icon="ticket"></i> Open ticket</a>
       </div>
 
@@ -561,7 +678,30 @@
         <div class="card status-tile"><span class="label">Registration</span><span class="badge badge-success" style="align-self:flex-start">Confirmed</span><span class="val" data-me="regId">—</span></div>
         <div class="card status-tile"><span class="label">Payment</span><span class="badge badge-success" style="align-self:flex-start">Paid</span><span class="val"><span data-cfg="fee">—</span> · <span data-me="method">—</span></span></div>
         <div class="card status-tile"><span class="label">Ticket</span><span class="badge badge-success" style="align-self:flex-start">Issued</span><span class="val" data-me="ticketId">—</span></div>
-        <div class="card status-tile"><span class="label">Competition</span><span id="comp-status" style="align-self:flex-start"></span><span class="val">3 problems · <span data-cfg="duration">—</span> min</span></div>
+        <div class="card status-tile"><span class="label">Roll Number</span><span class="badge badge-info" style="align-self:flex-start">Verified</span><span class="val" data-me="roll">—</span></div>
+      </div>
+
+      <!-- STUDENT DETAILS CARD -->
+      <div class="card card-pad mt">
+        <div class="card-head" style="padding-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div>
+            <h3 style="font-size:17px;font-weight:600">Student Profile &amp; Enrollment Details</h3>
+            <p class="muted" style="font-size:13px;margin-top:2px">Official registration details recorded for the competition</p>
+          </div>
+          <span class="badge badge-success">Verified Participant</span>
+        </div>
+        <div class="card-body">
+          <div class="grid g-4" style="row-gap:20px">
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Full Name</span><strong style="display:block;font-size:15px;margin-top:2px" data-me="name">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Roll Number</span><strong style="display:block;font-size:15px;margin-top:2px" class="num" data-me="roll">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Department &amp; Year</span><strong style="display:block;font-size:15px;margin-top:2px" id="dash-dept-year">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">College</span><strong style="display:block;font-size:15px;margin-top:2px" data-me="college">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Email Address</span><strong style="display:block;font-size:15px;margin-top:2px" data-me="email">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Phone Number</span><strong style="display:block;font-size:15px;margin-top:2px" data-me="phone">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Registration ID</span><strong style="display:block;font-size:15px;margin-top:2px" class="num" data-me="regId">—</strong></div>
+            <div><span class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Ticket Number</span><strong style="display:block;font-size:15px;margin-top:2px" class="num badge badge-success" style="display:inline-block;padding:2px 8px" data-me="ticketId">—</strong></div>
+          </div>
+        </div>
       </div>
 
       <div class="grid g-main mt">
@@ -620,28 +760,27 @@
 
     <!-- ARENA -->
     <section class="view" data-view="arena" hidden>
-      <div class="view-head"><div><h2>Competition arena</h2><p>Three problems, <span data-cfg="duration">—</span> minutes, one submission button.</p></div></div>
+      <div class="view-head"><div><h2>Competition arena</h2><p>Access your competition challenge on the official hosting platform.</p></div></div>
       <div class="grid g-main">
         <div class="card card-pad">
           <div style="display:flex;align-items:center;gap:12px"><span id="arena-status"></span><span class="muted" style="font-size:13px"><span data-cfg="date">—</span> · <span data-cfg="time">—</span></span></div>
           <p id="arena-copy" class="text-2" style="margin-top:16px;max-width:560px"></p>
           <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap">
-            <button class="btn btn-primary" data-enter-arena><i data-icon="play"></i> Enter arena</button>
-            <a class="btn btn-secondary" href="/#rules">Rules &amp; scoring</a>
+            <button class="btn btn-primary" data-enter-arena><i data-icon="play"></i> Open Competition Portal</button>
+            <a class="btn btn-secondary" href="/#rules">Rules &amp; guidelines</a>
           </div>
         </div>
-        <div class="card"><div class="card-head"><h3>Before you start</h3></div>
+        <div class="card"><div class="card-head"><h3>Before you begin</h3></div>
           <ul class="announce">
-            <li><h4>Fullscreen is required</h4><p>Exiting fullscreen is logged for organisers.</p></li>
-            <li><h4>Tab switches are recorded</h4><p>Three or more switches flag your session for review.</p></li>
-            <li><h4>Your code autosaves</h4><p>Drafts are saved on this device, per problem and language. Only submitted code is judged.</p></li>
+            <li><h4>External Hosting</h4><p>The competition problems are hosted on our dedicated competition platform. Ensure you have your roll number ready.</p></li>
+            <li><h4>College ID required</h4><p>Keep your official college ID card with you during the contest.</p></li>
           </ul></div>
       </div>
     </section>
 
     <!-- RESULTS -->
     <section class="view" data-view="results" hidden>
-      <div class="view-head"><div><h2>Results</h2><p>Your score, rank and how each problem went.</p></div></div>
+      <div class="view-head"><div><h2>Results &amp; Leaderboard</h2><p id="dash-results-sub">Official competition results and standings.</p></div></div>
       <div id="my-results"></div>
     </section>
 
@@ -672,10 +811,10 @@
   </div>
 </div>
 </template>
-<template id="page-arena" data-title="Arena — CODE//ARENA" data-body-page="arena" data-body-class="arena-body" data-no-proto-nav>
+<template id="page-arena" data-title="Arena — CODE ARENA" data-body-page="arena" data-body-class="arena-body" data-no-proto-nav>
 <header class="arena-bar">
-  <a class="brand" href="/dashboard" aria-label="Back to dashboard"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
-  <span class="event"><span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span> · Main round</span>
+  <a class="brand" href="/dashboard" aria-label="Back to dashboard"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
+  <span class="event"><span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span> · Main round</span>
   <div class="center">
     <span id="mode-badge"></span>
     <div class="timer" id="timer" role="timer" aria-live="off"><small>Time left</small><span id="timer-val">--:--:--</span></div>
@@ -739,10 +878,10 @@
   </section>
 </main>
 </template>
-<template id="page-leaderboard" data-title="Leaderboard — CODE//ARENA" data-body-page="leaderboard">
+<template id="page-leaderboard" data-title="Leaderboard — CODE ARENA" data-body-page="leaderboard">
 <header class="simple-nav">
   <div class="container">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <div style="display:flex;gap:8px"><a class="btn btn-ghost btn-sm" href="/">Event</a><a class="btn btn-secondary btn-sm" href="/dashboard">Dashboard</a></div>
   </div>
 </header>
@@ -751,7 +890,7 @@
   <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
     <div>
       <div style="display:flex;gap:10px;align-items:center"><h1>Results &amp; leaderboard</h1><span id="lb-status"></span></div>
-      <p><span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span> · <span data-cfg="date">—</span> · ranked by score, then completion time</p>
+      <p><span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span> · <span data-cfg="date">—</span> · ranked by score, then completion time</p>
     </div>
     <button class="btn btn-secondary btn-sm" id="lb-export"><i data-icon="download"></i> Export CSV</button>
   </div>
@@ -784,22 +923,22 @@
   <p class="footnote">Select any row for the full performance breakdown.</p>
 </main>
 </template>
-<template id="page-certificate" data-title="Certificate — CODE//ARENA" data-body-page="certificate">
+<template id="page-certificate" data-title="Certificate — CODE ARENA" data-body-page="certificate">
 <header class="simple-nav">
   <div class="container">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <a class="btn btn-secondary btn-sm" href="/dashboard#certificates">Back to certificates</a>
   </div>
 </header>
 
 <main class="container">
-  <div class="page-head"><h1>Certificate preview</h1><p>Change the name or type and the certificate updates instantly.</p></div>
+  <div class="page-head"><h1>Certificate preview</h1><p>Issued certificates are locked to the recipient name and result.</p></div>
 
   <div class="cert-layout">
     <form class="card card-pad cert-controls" id="cert-form" onsubmit="return false">
-      <div class="field"><label for="c-name-in">Name on certificate</label><input class="input" id="c-name-in" name="name" maxlength="48"></div>
+      <div class="field"><label for="c-name-in">Name on certificate</label><input class="input" id="c-name-in" name="name" maxlength="48" readonly></div>
       <div class="field"><label for="c-type">Certificate type</label>
-        <select class="select" id="c-type" name="type"><option value="participation">Participation</option><option value="achievement">Achievement</option></select></div>
+        <select class="select" id="c-type" name="type"><option value="participation">Participation</option><option value="achievement">Excellence</option></select></div>
       <div class="field" id="title-field"><label for="c-title-in">Achievement title</label>
         <select class="select" id="c-title-in" name="title"><option>Winner</option><option>First Runner-up</option><option>Second Runner-up</option><option>Top 10 Finisher</option><option>Fastest First Solve</option></select></div>
       <div class="field"><label for="c-date-in">Issue date</label><input class="input" id="c-date-in" name="date" type="date"></div>
@@ -816,28 +955,28 @@
           <div class="cert-id">Certificate ID <strong id="c-id" style="color:#1a1d1a">—</strong><br>Issued <span id="c-date">—</span></div>
         </div>
         <div class="cert-body">
-          <div class="cert-kicker"><span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span></div>
+          <div class="cert-kicker"><span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span></div>
           <h2 class="cert-title" id="c-title">Certificate of Participation</h2>
           <div class="cert-rule"></div>
           <p class="cert-present">This certificate is proudly presented to</p>
-          <p class="cert-name" id="c-name">Student Name</p>
+          <p class="cert-name" id="c-name">—</p>
           <span class="cert-achievement" id="c-achievement" hidden>Winner</span>
           <p class="cert-text" id="c-text"></p>
         </div>
         <div class="cert-foot">
           <div class="sig"><div class="line">Signature</div><strong>[Faculty Coordinator]</strong>Event Convener</div>
-          <div class="seal">Verified<br>2026</div>
-          <div class="sig"><div class="line">Signature</div><strong>[Head of Department]</strong><span data-cfg="organiser">Department of CSE</span></div>
+          <div class="seal">Verified<br><span data-cfg="edition">—</span></div>
+          <div class="sig"><div class="line">Signature</div><strong>[Head of Department]</strong><span data-cfg="organiser">—</span></div>
         </div>
       </article>
     </div>
   </div>
 </main>
 </template>
-<template id="page-admin-login" data-title="Admin login — CODE//ARENA" data-body-page="admin-login">
+<template id="page-admin-login" data-title="Admin login — CODE ARENA" data-body-page="admin-login">
 <header class="simple-nav">
   <div class="container">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <a class="btn btn-ghost btn-sm" href="/">Event site</a>
   </div>
 </header>
@@ -851,10 +990,10 @@
   </form>
 </main>
 </template>
-<template id="page-admin" data-title="Admin — CODE//ARENA" data-body-page="admin">
+<template id="page-admin" data-title="Admin — CODE ARENA" data-body-page="admin">
 <div class="app">
   <aside class="sidebar" aria-label="Admin navigation">
-    <a class="brand" href="/"><span class="brand-mark">//</span><span class="brand-name" data-brand>CODE<span class="sep">//</span>ARENA</span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="Logo" style="height:24px; margin-right:8px; vertical-align:middle; display:inline-block;" /></a>
     <p class="side-label" style="padding-top:0">Event</p>
     <nav class="side-nav">
       <a href="#overview"><i data-icon="chart"></i>Overview</a>
@@ -862,10 +1001,8 @@
       <a href="#payments"><i data-icon="card"></i>Payments<span class="count" id="nav-pending"></span></a>
       <a href="#tickets"><i data-icon="ticket"></i>Tickets</a>
     </nav>
-    <p class="side-label">Competition</p>
+    <p class="side-label">Competition &amp; Awards</p>
     <nav class="side-nav">
-      <a href="#questions"><i data-icon="code"></i>Questions</a>
-      <a href="#control"><i data-icon="play"></i>Competition control</a>
       <a href="#results"><i data-icon="trophy"></i>Results</a>
       <a href="#certificates"><i data-icon="award"></i>Certificates</a>
     </nav>
@@ -889,9 +1026,9 @@
           <summary class="btn btn-secondary btn-sm">Quick actions</summary>
           <div class="dropdown-menu">
             <a href="#participants"><i data-icon="download"></i>Export participants</a>
-            <a href="#control"><i data-icon="play"></i>Competition control</a>
-            <a href="#questions"><i data-icon="edit"></i>Edit questions</a>
+            <a href="#tickets"><i data-icon="ticket"></i>View tickets</a>
             <a href="/leaderboard"><i data-icon="trophy"></i>Public leaderboard</a>
+            <a href="#settings"><i data-icon="settings"></i>Settings</a>
             <button data-signout><i data-icon="logout"></i>Sign out</button>
           </div>
         </details>
@@ -900,8 +1037,8 @@
 
     <!-- OVERVIEW -->
     <section class="view" data-view="overview">
-      <div class="view-head"><div><h2><span data-cfg="name">CODE//ARENA</span> <span data-cfg="edition">2026</span></h2><p><span data-cfg="date">—</span> · <span data-cfg="venue">—</span> · <span id="reg-state"></span></p></div>
-        <div style="display:flex;gap:8px"><a class="btn btn-secondary btn-sm" href="#participants">Participants</a><a class="btn btn-primary btn-sm" href="#control"><i data-icon="play"></i> Competition control</a></div></div>
+      <div class="view-head"><div><h2><span data-cfg="name">CODE ARENA</span> <span data-cfg="edition"></span></h2><p><span data-cfg="date">—</span> · <span data-cfg="venue">—</span> · <span id="reg-state"></span></p></div>
+        <div style="display:flex;gap:8px"><a class="btn btn-secondary btn-sm" href="#participants">Participants</a><a class="btn btn-primary btn-sm" href="#tickets"><i data-icon="ticket"></i> Tickets</a></div></div>
       <div class="grid g-4" id="kpis"></div>
       <div class="grid g-main mt">
         <div class="card">
@@ -960,68 +1097,7 @@
     </section>
 
 
-    <!-- QUESTIONS -->
-    <section class="view" data-view="questions" hidden>
-      <div class="view-head"><div><h2>Questions</h2><p>The arena serves these problems in order. Students can only see them once you start the contest.</p></div>
-        <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" id="q-new"><i data-icon="plus"></i> New question</button></div></div>
-      <div class="grid" style="grid-template-columns:minmax(0,280px) minmax(0,1fr);align-items:start" id="q-grid">
-        <div class="card"><div class="q-list" id="q-list"></div></div>
-        <div class="card">
-          <div class="tabs" id="q-tabs" style="padding:0 12px"><button class="active" data-tab="edit">Edit</button><button data-tab="preview">Preview</button></div>
-          <form id="q-form" class="card-body" novalidate>
-            <div class="form-grid">
-              <div class="field span-2"><label for="q-title">Title</label><input class="input" id="q-title" name="title" required></div>
-              <div class="field"><label for="q-diff">Difficulty</label><select class="select" id="q-diff" name="difficulty"><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
-              <div class="field"><label for="q-points">Points</label><input class="input" id="q-points" name="points" type="number" min="10" max="1000" step="10"></div>
-              <div class="field"><label for="q-time">Time limit</label><input class="input" id="q-time" name="timeLimit"></div>
-              <div class="field"><label for="q-mem">Memory limit</label><input class="input" id="q-mem" name="memory"></div>
-              <div class="field span-2"><label for="q-statement">Statement</label><textarea class="textarea" id="q-statement" name="statement" rows="5"></textarea><span class="hint">New lines start new paragraphs.</span></div>
-              <div class="field"><label for="q-input">Input format</label><textarea class="textarea" id="q-input" name="input" rows="3"></textarea></div>
-              <div class="field"><label for="q-output">Output format</label><textarea class="textarea" id="q-output" name="output" rows="3"></textarea></div>
-              <div class="field span-2"><label for="q-cons">Constraints</label><textarea class="textarea" id="q-cons" name="constraints" rows="3"></textarea><span class="hint">One per line. Write powers as 10^5.</span></div>
-              <div class="field"><label for="q-sin">Sample input</label><textarea class="textarea" id="q-sin" name="sampleIn" rows="4" style="font-family:var(--mono);font-size:13px"></textarea></div>
-              <div class="field"><label for="q-sout">Sample output</label><textarea class="textarea" id="q-sout" name="sampleOut" rows="4" style="font-family:var(--mono);font-size:13px"></textarea></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;gap:8px;margin-top:24px">
-              <button class="btn btn-danger btn-sm" type="button" id="q-delete"><i data-icon="trash"></i> Delete</button>
-              <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" type="button" id="q-preview-btn"><i data-icon="eye"></i> Preview</button><button class="btn btn-primary btn-sm" type="submit">Save question</button></div>
-            </div>
-          </form>
-          <div id="q-preview" class="card-body" hidden></div>
-        </div>
-      </div>
-    </section>
 
-    <!-- COMPETITION CONTROL -->
-    <section class="view" data-view="control" hidden>
-      <div class="view-head"><div><h2>Competition control</h2><p>Start, monitor and close the contest. Every student's arena reacts instantly.</p></div></div>
-      <div class="stage-steps" id="stages"></div>
-      <div class="grid g-main mt">
-        <div class="card card-pad">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
-            <div><p class="eyebrow" id="timer-label">Time remaining</p><div class="big-timer" id="ctl-timer" style="margin-top:10px">02:00:00</div><p class="muted" style="font-size:13px;margin-top:8px" id="ctl-sub"></p></div>
-            <span id="ctl-badge"></span>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:28px">
-            <button class="btn btn-primary" id="ctl-start"><i data-icon="play"></i> Start event</button>
-            <button class="btn btn-danger" id="ctl-end"><i data-icon="flag"></i> End event</button>
-            <button class="btn btn-secondary" id="ctl-publish"><i data-icon="send"></i> Publish results</button>
-            <button class="btn btn-ghost" id="ctl-reset"><i data-icon="refresh"></i> Reset</button>
-          </div>
-          <hr class="divider" style="margin:24px 0">
-          <form id="duration-form" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-            <div class="field" style="width:180px"><label for="duration">Duration (minutes)</label><input class="input" id="duration" type="number" min="15" max="300" step="5"></div>
-            <button class="btn btn-secondary" type="submit">Apply duration</button>
-            <span class="hint muted" style="font-size:12.5px;padding-bottom:10px">Changing it while live extends or shortens everyone's clock.</span>
-          </form>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>Live activity</h3></div>
-          <div class="card-body grid g-2" id="sim-stats" style="gap:12px"></div>
-        </div>
-      </div>
-      <div class="card mt"><div class="card-head"><h3>Live submission feed</h3><span class="muted" style="font-size:13px" id="feed-note"></span></div><ul class="feed" id="feed"></ul></div>
-    </section>
 
     <!-- RESULTS -->
     <section class="view" data-view="results" hidden>
@@ -1037,11 +1113,15 @@
 
     <!-- CERTIFICATES -->
     <section class="view" data-view="certificates" hidden>
-      <div class="view-head"><div><h2>Certificates</h2><p>Issue participation certificates to everyone who competed and achievement certificates to the top 10.</p></div>
-        <div style="display:flex;gap:8px"><a class="btn btn-secondary btn-sm" href="/certificate"><i data-icon="eye"></i> Preview template</a><button class="btn btn-primary btn-sm" id="issue-certs"><i data-icon="send"></i> Issue certificates</button></div></div>
+      <div class="view-head"><div><h2>Certificates</h2><p>Upload locked templates, then send certificates to ranks 1–2 as certificates of excellence and all other competitors as certificates of participation.</p></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" id="issue-certs"><i data-icon="send"></i> Send certificates</button></div></div>
+      <div class="card mt"><div class="card-body form-grid">
+        <div class="field"><label for="cert-template-participation">Participation template (PNG/JPEG)</label><input class="input" id="cert-template-participation" type="file" accept="image/png,image/jpeg"><span class="hint" id="cert-template-participation-status">Not uploaded</span></div>
+        <div class="field"><label for="cert-template-achievement">Excellence template (PNG/JPEG)</label><input class="input" id="cert-template-achievement" type="file" accept="image/png,image/jpeg"><span class="hint" id="cert-template-achievement-status">Not uploaded</span></div>
+      </div></div>
       <div class="grid g-3" id="cert-kpis"></div>
       <div class="card mt" id="issue-progress" hidden><div class="card-body"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px"><span>Generating certificates…</span><span class="num" id="issue-count"></span></div><div class="progress"><span id="issue-bar" style="width:0"></span></div></div></div>
-      <div class="card mt"><div class="card-head"><h3>Achievement certificates</h3></div>
+      <div class="card mt">      <div class="card-head"><h3>Certificates of excellence</h3></div>
         <div class="table-wrap"><table class="table"><thead><tr><th>Rank</th><th>Recipient</th><th>Title</th><th>Certificate ID</th><th class="right">Preview</th></tr></thead><tbody id="cert-body"></tbody></table></div></div>
     </section>
 
@@ -1057,10 +1137,14 @@
         <div class="setting-row"><div><h4>Capacity &amp; fee</h4><p>Seats left is computed from paid registrations.</p></div>
           <div class="form-grid"><div class="field"><label for="s-cap">Capacity</label><input class="input" id="s-cap" name="capacity" type="number" min="10" max="5000"></div><div class="field"><label for="s-fee">Registration fee (₹)</label><input class="input" id="s-fee" name="fee" type="number" min="1" max="10000"></div>
           <div class="field"><label for="s-dur">Contest duration (minutes)</label><input class="input" id="s-dur" name="durationMin" type="number" min="15" max="300"></div><div class="field"><label for="s-years">Eligible years</label><input class="input" id="s-years" name="eligibleYears" placeholder="e.g. 2, 3"><span class="hint">Leave empty to allow every year</span></div></div></div>
-        <div class="setting-row"><div><h4>Policies</h4><p>Applied to registration and the arena.</p></div>
+        <div class="setting-row"><div><h4>Competition &amp; results portals</h4><p>External websites for the contest arena and results scoreboard.</p></div>
+          <div class="form-grid">
+            <div class="field span-2"><label for="s-comp-url">External Competition Arena / Form URL</label><input class="input" id="s-comp-url" name="compUrl" placeholder="https://forms.gle/... or https://unstop.com/..." type="url"><span class="hint">Students clicking “Competition arena” in their dashboard will open this platform directly.</span></div>
+            <div class="field span-2"><label for="s-results-url">External Results / Leaderboard URL</label><input class="input" id="s-results-url" name="resultsUrl" placeholder="https://unstop.com/... or https://docs.google.com/spreadsheets/..." type="url"><span class="hint">The external website where official results and final leaderboard are published.</span></div>
+          </div></div>
+        <div class="setting-row"><div><h4>Policies</h4><p>Applied to registration.</p></div>
           <div style="display:grid;gap:14px">
             <label style="display:flex;gap:12px;align-items:center;font-size:14px"><span class="switch"><input type="checkbox" name="regOpen" checked><span></span></span>Registrations open</label>
-            <label style="display:flex;gap:12px;align-items:center;font-size:14px"><span class="switch"><input type="checkbox" name="tabWatch" checked><span></span></span>Record tab switches in the arena</label>
           </div></div>
         <div class="modal-foot" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit">Save settings</button></div>
       </form>
