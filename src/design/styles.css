@@ -2,27 +2,16 @@
    CODE//ARENA — shared design system
    Tokens first; every component below reads from them.
    ========================================================================= */
-   body[data-page="landing"] {
-     user-select: none;
-     -webkit-user-select: none;
-   }
+body[data-page="landing"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
 
-   body[data-page="landing"] dialog,
-   body[data-page="landing"] dialog * {
-     user-select: text;
-     -webkit-user-select: text;
-   }
-
-   .brand img {
-     border-radius: 8px;
-   }
-
-   .brand::after {
-     content: "CODE ARENA";
-     color: var(--text);
-     font-weight: 700;
-     letter-spacing: 0.04em;
-   }
+body[data-page="landing"] dialog,
+body[data-page="landing"] dialog * {
+  user-select: text;
+  -webkit-user-select: text;
+}
 
 :root {
   /* Surfaces */

@@ -223,18 +223,12 @@ const COURSES = { A: 'B.Tech', D: 'M.Tech', E: 'MBA', F: 'MCA' }
 const ROMAN = { I: '1', II: '2', III: '3', IV: '4' }
 const titleCase = s => String(s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 
-const studentLookupCache = new Map()
-
 /** Student details from the college records (fetched via /api/lookup on server, with direct fallback). */
 export async function lookupStudent(roll) {
   const norm = String(roll || '').trim().toUpperCase()
-  if (studentLookupCache.has(norm)) return studentLookupCache.get(norm)
   try {
     const s = await api('lookup', { roll: norm })
-    if (s && s.name) {
-      studentLookupCache.set(norm, s)
-      return s
-    }
+    if (s && s.name) return s
   } catch (err) {
     console.warn('/api/lookup unavailable, using direct student API fallback:', err.message)
   }
@@ -259,7 +253,6 @@ export async function lookupStudent(roll) {
     year: ROMAN[String(d.semester || '').split('/')[0].trim()] || '1',
     email: String(d.student_email || '')
   }
-  studentLookupCache.set(norm, parsed)
   return parsed
 }
 
@@ -334,6 +327,9 @@ export function errorMessage(e) {
  *  to PayU's hosted payment gateway (secure.payu.in) where the student completes payment via UPI/Card/NetBanking.
  *  After payment, PayU returns to surl (/register?payment=success) and the ticket is generated. */
 export async function payWithPayU({ name, description, prefill = {} }) {
+  if (!prefill.roll || !prefill.phone || !prefill.email) {
+    throw new Error('Complete the verified student details before continuing to payment.')
+  }
   const order = await api('create-order', {
     phone: prefill.phone,
     name: prefill.name,
@@ -366,7 +362,7 @@ export async function payWithPayU({ name, description, prefill = {} }) {
     key: order.key,
     txnid: order.txnid,
     amount: order.amount,
-    productinfo: order.productinfo || name || 'CODE//ARENA Registration',
+    productinfo: order.productinfo || name || 'CODE ARENA Registration',
     firstname: order.firstname || (prefill.name ? prefill.name.split(' ')[0] : 'Student'),
     email: order.email || prefill.email || '',
     phone: order.phone || (prefill.phone ? String(prefill.phone).slice(-10) : '9999999999'),
