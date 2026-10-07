@@ -5,8 +5,11 @@ import { handler, student, checkCanRegister, db, FieldValue, HttpError, PAYU_KEY
  *  The amount comes from the event settings and the student's details from college records. */
 export default handler(async req => {
   const { uid, roll } = await student(req)
-  if (db && (await db.doc(`registrations/${uid}`).get()).exists) {
-    throw new HttpError(409, 'You are already registered. Open your ticket from the dashboard.')
+  if (db) {
+    const regSnap = await db.doc(`registrations/${uid}`).get()
+    if (regSnap.exists && regSnap.data()?.payment === 'paid') {
+      throw new HttpError(409, 'You are already registered. Open your ticket from the dashboard.')
+    }
   }
   const { student: s, cfg } = await checkCanRegister(roll)
   if (!(cfg.fee > 0)) {
@@ -20,10 +23,12 @@ export default handler(async req => {
   const rand = crypto.randomBytes(3).toString('hex').toUpperCase()
   const txnid = `CA${Date.now().toString().slice(-8)}${rand}`
   const amount = Number(cfg.fee).toFixed(2)
-  const productinfo = `${cfg.name || 'CODE//ARENA'} Registration`
+  const productinfo = `${(cfg.name || 'CODE ARENA').replace(/[^a-zA-Z0-9 ]/g, '')} Registration`
   const firstname = (s.name || 'Student').replace(/[^a-zA-Z0-9 ]/g, '').trim().split(' ')[0] || 'Student'
-  const email = s.email || `${roll.toLowerCase()}@students.codearena.local`
   const phone = (req.body?.phone || s.phone || '9999999999').replace(/[^0-9]/g, '').slice(-10) || '9999999999'
+  s.phone = phone
+  const email = (s.email || req.body?.email || `${roll.toLowerCase()}@mlrit.ac.in`).trim()
+  s.email = email
 
   const hash = createPaymentHash({
     key: PAYU_KEY,
@@ -38,20 +43,6 @@ export default handler(async req => {
   })
 
   if (db) {
-    await db.doc(`registrations/${uid}`).set({
-      uid,
-      roll,
-      name: s.name || 'Student',
-      email: email,
-      phone: phone,
-      payment: 'pending',
-      txnid,
-      amount,
-      currency: 'INR',
-      method: 'PayU',
-      createdAt: FieldValue.serverTimestamp()
-    }, { merge: true })
-
     await db.doc(`orders/${txnid}`).set({
       uid,
       roll,
