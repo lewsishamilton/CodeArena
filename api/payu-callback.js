@@ -1,4 +1,4 @@
-import { db, verifyReverseHash, verifyPayUPayment } from './_lib.js'
+import { db, verifyReverseHash } from './_lib.js'
 import { issue } from './confirm-payment.js'
 
 /** PayU Webhook / Callback handler for surl & furl POST requests. */
@@ -32,42 +32,33 @@ export default async function handler(req, res) {
         const orderSnap = await orderRef.get()
         if (orderSnap.exists) {
           const order = orderSnap.data()
-          let verified = false
-          try {
-            const details = await verifyPayUPayment(txnid)
-            if (details && (String(details.status).toLowerCase() === 'success' || String(details.status).toLowerCase() === 'captured')) {
-              verified = true
-              await issue(order.uid, orderRef, order, details)
-            }
-          } catch (e) {
-            console.warn('Verify with PayU postservice error:', e.message)
+          const hashValid = verifyReverseHash({
+            status: body.status,
+            txnid: body.txnid,
+            amount: body.amount,
+            productinfo: body.productinfo,
+            firstname: body.firstname,
+            email: body.email,
+            udf1: body.udf1 || '',
+            udf2: body.udf2 || '',
+            udf3: body.udf3 || '',
+            udf4: body.udf4 || '',
+            udf5: body.udf5 || '',
+            udf6: body.udf6 || '',
+            udf7: body.udf7 || '',
+            udf8: body.udf8 || '',
+            udf9: body.udf9 || '',
+            udf10: body.udf10 || '',
+            additionalCharges: body.additionalCharges,
+            hash: body.hash
+          })
+          if (!hashValid) throw new Error('Invalid PayU callback signature.')
+          if (order.amount && Number(body.amount) !== Number(order.amount)) {
+            throw new Error('PayU callback amount does not match the order.')
           }
-
-          if (!verified) {
-            const hashValid = verifyReverseHash({
-              status: body.status,
-              txnid: body.txnid,
-              amount: body.amount,
-              productinfo: body.productinfo,
-              firstname: body.firstname,
-              email: body.email,
-              udf1: body.udf1 || '',
-              udf2: body.udf2 || '',
-              udf3: body.udf3 || '',
-              udf4: body.udf4 || '',
-              udf5: body.udf5 || '',
-              udf6: body.udf6 || '',
-              udf7: body.udf7 || '',
-              udf8: body.udf8 || '',
-              udf9: body.udf9 || '',
-              udf10: body.udf10 || '',
-              additionalCharges: body.additionalCharges,
-              hash: body.hash
-            })
-            if (hashValid) {
-              await issue(order.uid, orderRef, order, body)
-            }
-          }
+          // The signed callback is sufficient here. A second verify_payment
+          // request can hit PayU's rate limit during the browser redirect.
+          await issue(order.uid, orderRef, order, body)
         }
       }
       res.writeHead(302, { Location: `/register?payment=success&txnid=${encodeURIComponent(txnid)}` })

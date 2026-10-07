@@ -1,4 +1,4 @@
-import { db, verifyReverseHash, verifyPayUPayment } from './_lib.js'
+import { db, verifyReverseHash } from './_lib.js'
 import { issue } from './confirm-payment.js'
 
 /** Secure PayU Server-to-Server Webhook handler */
@@ -36,22 +36,7 @@ export default async function handler(req, res) {
           return res.status(200).send('Already processed')
         }
 
-        let verified = false
-        
-        // Fallback/Reconciliation: Verify the payment directly via PayU Verify API
-        try {
-          const details = await verifyPayUPayment(txnid)
-          if (details && (String(details.status).toLowerCase() === 'success' || String(details.status).toLowerCase() === 'captured')) {
-            verified = true
-            await issue(order.uid, orderRef, order, details)
-          }
-        } catch (e) {
-          console.warn('Webhook PayU Verify API error:', e.message)
-        }
-
-        // If Verify API failed or returned unknown, fallback to reverse hash validation on the Webhook body
-        if (!verified) {
-          const hashValid = verifyReverseHash({
+        const hashValid = verifyReverseHash({
             status: body.status,
             txnid: body.txnid,
             amount: body.amount,
@@ -72,13 +57,14 @@ export default async function handler(req, res) {
             hash: body.hash
           })
           
-          if (hashValid) {
-            await issue(order.uid, orderRef, order, body)
-          } else {
-            console.warn('Webhook hash validation failed for txnid:', txnid)
-            return res.status(403).send('Invalid Hash')
-          }
+        if (!hashValid) {
+          console.warn('Webhook hash validation failed for txnid:', txnid)
+          return res.status(403).send('Invalid Hash')
         }
+        if (order.amount && Number(body.amount) !== Number(order.amount)) {
+          return res.status(409).send('Payment amount does not match the order')
+        }
+        await issue(order.uid, orderRef, order, body)
       }
     }
     

@@ -188,20 +188,23 @@ export async function logout() {
   await setUser(null)
 }
 
-/** Creates the student's login (roll number + password) and signs them in. */
-export async function requestEnrollmentCode(roll, email) {
-  return api('request-enrollment', { roll, email })
-}
-
 export async function resetParticipantPassword(uid, password) {
   return api('admin-reset-password', { uid, password })
 }
 
-export async function createAccount(roll, password, code) {
+/** Creates the student's login (roll number + password) and signs them in. */
+export async function createAccount(roll, password) {
   if (!configured) throw new Error('The site is not connected to Firebase yet.')
-  if (!code) throw new Error('Verify your official student email before creating an account.')
   const cleanRoll = String(roll).trim().toUpperCase()
-  const enrolled = await api('complete-enrollment', { roll: cleanRoll, password, code })
+  const email = rollEmail(cleanRoll)
+  try {
+    const credential = await signInWithEmailAndPassword(auth, email, password)
+    await setUser(credential.user)
+    return session
+  } catch (error) {
+    if (!['auth/user-not-found', 'auth/invalid-credential'].includes(error.code)) throw error
+  }
+  const enrolled = await api('complete-enrollment', { roll: cleanRoll, password })
   const credential = await signInWithCustomToken(auth, enrolled.token)
   await setUser(credential.user)
   return session

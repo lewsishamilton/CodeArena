@@ -4,9 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 const API_ROUTES: Record<string, () => Promise<any>> = {
   'lookup': () => import('./api/lookup.js'),
+  'complete-enrollment': () => import('./api/complete-enrollment.js'),
+  'admin-reset-password': () => import('./api/admin-reset-password.js'),
   'create-order': () => import('./api/create-order.js'),
   'confirm-payment': () => import('./api/confirm-payment.js'),
   'payu-callback': () => import('./api/payu-callback.js'),
+  'issue-certificates': () => import('./api/issue-certificates.js'),
 }
 
 function apiDevServer(): Plugin {
@@ -60,4 +63,3 @@ function apiDevServer(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), apiDevServer()],
 })
-

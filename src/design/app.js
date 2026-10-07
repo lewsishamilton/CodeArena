@@ -3,7 +3,7 @@
    All event data comes from Firebase (backend.js): settings, registrations,
    problems, submissions, scores and announcements. Nothing is hardcoded.
    ========================================================================= */
-import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, requestEnrollmentCode, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage, authHeaders, uploadCertificateTemplate, resetParticipantPassword } from './backend.js';
+import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage, authHeaders, uploadCertificateTemplate, resetParticipantPassword } from './backend.js';
 import QRCode from 'qrcode';
 
 /* ---------- Event state — loaded from Firestore config/* (Admin → Settings / Competition control) ---------- */
@@ -379,6 +379,36 @@ function openLogin(next) {
     return;
   }
 
+  if (next?.startsWith('/admin')) {
+    modal({
+      title: 'Organiser Login', confirm: 'Log in', cancel: 'Cancel',
+      body: `<p style="color:var(--text-2);font-size:14px;line-height:1.5;margin-bottom:16px">Sign in with the organiser account to open the admin console.</p>
+        <form id="admin-login-modal-form" style="display:grid;gap:14px" novalidate>
+          <div class="field"><label for="am-id" style="font-size:12.5px;font-weight:600;color:var(--text)">Admin ID</label><input class="input" id="am-id" name="id" placeholder="admin" autocomplete="username" required></div>
+          <div class="field"><label for="am-pass" style="font-size:12.5px;font-weight:600;color:var(--text)">Password</label><input class="input" id="am-pass" name="password" type="password" autocomplete="current-password" required></div>
+          <p id="am-err" role="alert" style="font-size:13px;color:var(--danger);margin:4px 0 0" hidden></p>
+          <button type="submit" hidden></button>
+        </form>`,
+      onOpen: dlg => {
+        setTimeout(() => $('#am-id', dlg)?.focus(), 80);
+        $('#admin-login-modal-form', dlg).onsubmit = e => { e.preventDefault(); $('[data-act="ok"]', dlg)?.click(); };
+      },
+      onConfirm: dlg => {
+        const id = $('#am-id', dlg).value.trim(), pw = $('#am-pass', dlg).value;
+        const err = $('#am-err', dlg), btn = $('[data-act="ok"]', dlg);
+        const fail = msg => { err.textContent = msg; err.hidden = false; btn.disabled = false; btn.textContent = 'Log in'; };
+        if (!id || !pw) { fail('Enter the admin ID and password.'); return false; }
+        btn.disabled = true; btn.textContent = 'Logging in…'; err.hidden = true;
+        loginAdmin(id, pw).then(() => {
+          dlg.close();
+          location.href = '/admin';
+        }).catch(e => fail(/invalid-credential|wrong-password|user-not-found/.test(e.code) ? 'Wrong admin ID or password.' : errorMessage(e)));
+        return false;
+      }
+    });
+    return;
+  }
+
   modal({
     title: 'Student Login', confirm: 'Log in', cancel: 'Cancel',
     body: `<p style="color:var(--text-2);font-size:14px;line-height:1.5;margin-bottom:16px">Enter your roll number and password to access your student dashboard.</p>
@@ -630,7 +660,6 @@ function initRegister() {
   };
   const rollInput = $('#reg-roll'), card = $('#student-card'), empty = $('#student-empty'), nextBtn = $('#step1-next');
   const phoneInput = $('#reg-phone'), passInput = $('#reg-pass'), pass2Input = $('#reg-pass2'), agreeInput = $('#agree');
-  const verificationField = $('#reg-verification-field'), verificationInput = $('#reg-verification-code');
   let student = null, lookupSeq = 0, timer;
 
   const cleanPhone = val => (val || '').replace(/\D/g, '').slice(-10);
@@ -788,14 +817,7 @@ function initRegister() {
     student.phone = rawPhone;
     nextBtn.disabled = true;
     try {
-      if (!verificationInput?.value.trim()) {
-        await requestEnrollmentCode(student.roll, student.email);
-        if (verificationField) verificationField.hidden = false;
-        verificationInput?.focus();
-        toast('A verification code was sent to the official student email.', 'info');
-        return;
-      }
-      await createAccount(student.roll, pw, verificationInput.value.trim());
+      await createAccount(student.roll, pw);
       const existing = await getRegistration();
       if (existing?.payment === 'paid') { showSuccess(existing, true); go(3); return; }
       pendingCheckout = { student: { ...student, phone: rawPhone } };

@@ -23,8 +23,34 @@ for (const envFile of ['.env.local', '.env']) {
   } catch (_) {}
 }
 
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-if (serviceAccount && !getApps().length) initializeApp({ credential: cert(JSON.parse(serviceAccount)) })
+function firebaseCredential() {
+  const serviceAccount = String(process.env.FIREBASE_SERVICE_ACCOUNT || '')
+    .trim()
+    .replace(/^(['"])|(['"])$/g, '')
+  if (serviceAccount) {
+    try {
+      return cert(JSON.parse(serviceAccount))
+    } catch (error) {
+      console.error('FIREBASE_SERVICE_ACCOUNT must contain valid service-account JSON.', error)
+      return null
+    }
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+  if (projectId && clientEmail && privateKey) {
+    return cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, '\n')
+    })
+  }
+  return null
+}
+
+const credential = firebaseCredential()
+if (credential && !getApps().length) initializeApp({ credential })
 export const db = getApps().length ? getFirestore() : null
 export { FieldValue }
 
@@ -66,9 +92,8 @@ export async function student(req) {
 /* ---------- PayU Payment Gateway ---------- */
 export const PAYU_KEY = process.env.PAYU_KEY || process.env.PAYU_MERCHANT_KEY || ''
 export const PAYU_SALT = process.env.PAYU_SALT || process.env.PAYU_MERCHANT_SALT || ''
-// Force production environment to bypass any stuck system env variables
-export const PAYU_ENV = 'production'
-export const PAYU_IS_PROD = true
+export const PAYU_ENV = String(process.env.PAYU_ENV || 'test').trim().toLowerCase()
+export const PAYU_IS_PROD = PAYU_ENV === 'production' || PAYU_ENV === 'prod'
 export const PAYU_POST_URL = process.env.PAYU_POST_URL || (PAYU_IS_PROD
   ? 'https://info.payu.in/merchant/postservice.php?form=2'
   : 'https://test.payu.in/merchant/postservice.php?form=2')
@@ -176,8 +201,59 @@ export function verifyReverseHash({
 }
 
 /** Server-to-server payment verification with PayU using the verify_payment command. */
+const payuCooldownUntil = new Map()
+const payuInFlight = new Map()
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function retryDelay(response, attempt) {
+  const retryAfter = response.headers.get('retry-after')
+  if (retryAfter) {
+    const seconds = Number(retryAfter)
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
+    const date = Date.parse(retryAfter)
+    if (Number.isFinite(date)) return Math.max(0, date - Date.now())
+  }
+
+  const reset = Number(response.headers.get('x-rate-limit-reset'))
+  if (Number.isFinite(reset)) {
+    const resetMs = reset > 1e12 ? reset : reset * 1000
+    return Math.max(0, resetMs - Date.now())
+  }
+
+  const exponential = Math.min(30_000, 1_000 * 2 ** attempt)
+  return Math.round(exponential * (0.5 + Math.random()))
+}
+
+function logPayUResponse(txnid, response, body) {
+  const headers = {}
+  response.headers.forEach((value, name) => { headers[name] = value })
+  console.error('PayU verify_payment response', {
+    txnid,
+    status: response.status,
+    headers,
+    body
+  })
+}
+
 export async function verifyPayUPayment(txnid) {
   if (!PAYU_KEY || !PAYU_SALT) throw new HttpError(503, 'PayU credentials (PAYU_KEY / PAYU_SALT) are not configured on the server.')
+  const existing = payuInFlight.get(txnid)
+  if (existing) return existing
+
+  const verification = verifyPayUPaymentOnce(txnid)
+  payuInFlight.set(txnid, verification)
+  try {
+    return await verification
+  } finally {
+    payuInFlight.delete(txnid)
+  }
+}
+
+async function verifyPayUPaymentOnce(txnid) {
+  const cooldown = payuCooldownUntil.get(PAYU_POST_URL) || 0
+  if (cooldown > Date.now()) await wait(cooldown - Date.now())
+
   const hash = payuHash(`${PAYU_KEY}|verify_payment|${txnid}|${PAYU_SALT}`)
   const params = new URLSearchParams()
   params.set('key', PAYU_KEY)
@@ -185,21 +261,55 @@ export async function verifyPayUPayment(txnid) {
   params.set('var1', txnid)
   params.set('hash', hash)
 
-  let r
-  try {
-    r = await fetch(PAYU_POST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    })
-  } catch (err) {
-    throw new HttpError(502, 'Could not contact PayU payment verification service.')
-  }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let response
+    let bodyText = ''
+    try {
+      response = await fetch(PAYU_POST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      })
+      bodyText = await response.text()
+    } catch (err) {
+      if (attempt === 2) throw new HttpError(502, 'Could not contact PayU payment verification service.')
+      await wait(Math.round(1_000 * (0.5 + Math.random())))
+      continue
+    }
 
-  const data = await r.json().catch(() => null)
-  if (!data) throw new HttpError(502, 'Invalid response from PayU payment verification service.')
-  const details = data.transaction_details?.[txnid]
-  return details || null
+    if (response.status === 429 || response.status >= 500) {
+      logPayUResponse(txnid, response, bodyText)
+      const delay = retryDelay(response, attempt)
+      payuCooldownUntil.set(PAYU_POST_URL, Date.now() + delay)
+      if (attempt < 2) {
+        await wait(delay)
+        continue
+      }
+      throw new HttpError(429, 'PayU rate limit or service error. Retry later.')
+    }
+
+    if (!response.ok) {
+      logPayUResponse(txnid, response, bodyText)
+      throw new HttpError(502, `PayU verification failed with HTTP ${response.status}.`)
+    }
+
+    let data
+    try { data = JSON.parse(bodyText) } catch (_) {
+      logPayUResponse(txnid, response, bodyText)
+      throw new HttpError(502, 'Invalid response from PayU payment verification service.')
+    }
+    if (/too many requests|rate limit/i.test(bodyText) || data.error) {
+      logPayUResponse(txnid, response, bodyText)
+      const delay = retryDelay(response, attempt)
+      payuCooldownUntil.set(PAYU_POST_URL, Date.now() + delay)
+      if (attempt < 2) {
+        await wait(delay)
+        continue
+      }
+      throw new HttpError(429, 'PayU reported a rate limit. Retry later.')
+    }
+    return data.transaction_details?.[txnid] || null
+  }
 }
 
 /* ---------- College student records ----------

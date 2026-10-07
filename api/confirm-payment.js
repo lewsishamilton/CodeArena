@@ -35,7 +35,13 @@ export default handler(async req => {
     return 0
   })
 
-  for (const o of sortedDocs) {
+  // A normal page load only needs the latest order. Verifying every historical
+  // order can trigger PayU's verify_payment rate limit.
+  const candidates = specificTxnid
+    ? sortedDocs.filter(o => o.id === specificTxnid || o.data().txnid === specificTxnid)
+    : sortedDocs.slice(0, 1)
+
+  for (const o of candidates) {
     const order = o.data()
     const txnid = order.txnid || o.id
 
