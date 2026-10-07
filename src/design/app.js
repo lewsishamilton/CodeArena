@@ -3,7 +3,7 @@
    All event data comes from Firebase (backend.js): settings, registrations,
    problems, submissions, scores and announcements. Nothing is hardcoded.
    ========================================================================= */
-import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, requestEnrollmentCode, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage, authHeaders, uploadCertificateTemplate } from './backend.js';
+import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, requestEnrollmentCode, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage, authHeaders, uploadCertificateTemplate, resetParticipantPassword } from './backend.js';
 import QRCode from 'qrcode';
 
 /* ---------- Event state — loaded from Firestore config/* (Admin → Settings / Competition control) ---------- */
@@ -331,10 +331,6 @@ function applyConfig() {
     }
   });
   $$('[data-seats-bar]').forEach(el => el.style.width = cap ? Math.min(100, PAID / cap * 100) + '%' : '0');
-  if (CONFIG.name) {
-    document.title = document.title.replace('CODE//ARENA', CONFIG.name);
-  }
-
   // Update register CTAs across landing page
   $$('a[href="/register"]').forEach(a => {
     if (!a.dataset.origText) a.dataset.origText = a.textContent.trim();
@@ -417,8 +413,11 @@ function openLogin(next) {
         if (reg?.payment === 'paid' || reg?.paid) {
           dlg.close();
           location.href = (n && !n.startsWith('/admin')) ? n : '/dashboard';
+        } else if (reg) {
+          fail('Your registration payment is still pending. Please complete payment to access the dashboard.');
+          setTimeout(() => { location.href = '/register'; }, 1200);
         } else {
-          fail('Registration found, but payment is pending. Redirecting to payment...');
+          fail('No active registration found for this roll number. Please register first.');
           setTimeout(() => { location.href = '/register'; }, 1200);
         }
       }).catch(e => fail(errorMessage(e)));
@@ -732,11 +731,21 @@ function initRegister() {
     }, 7000);
 
     try {
-      let s;
-      s = await lookupStudent(roll);
+      const s = await lookupStudent(roll);
       clearTimeout(serverWarmupTimer);
       clearTimeout(serverWarmupTimer2);
-      if (seq === lookupSeq) renderStudent(s);
+      if (seq === lookupSeq) {
+        renderStudent(s);
+        if (s.alreadyRegistered) {
+          nextBtn.disabled = true;
+          modal({
+            title: 'Already registered',
+            cancel: 'Close',
+            confirm: null,
+            body: `<p>This roll number is already registered. Please close this message and use <a href="/?login=1" style="color:var(--accent);font-weight:600">student login</a> to access the dashboard.</p>`
+          });
+        }
+      }
     } catch (e) {
       clearTimeout(serverWarmupTimer);
       clearTimeout(serverWarmupTimer2);
@@ -763,6 +772,9 @@ function initRegister() {
       return toast(isCapacityReached() ? `Registration capacity reached (${CONFIG.capacity} seats filled). Registration is closed.` : 'Registrations are closed.', 'error');
     }
     if (!student) return toast('Enter a valid roll number first', 'warn');
+    if (student.alreadyRegistered) {
+      return toast('This roll number is already registered. Log in to access the dashboard.', 'warn');
+    }
     const rawPhone = cleanPhone(phoneInput?.value);
     if (!/^[6-9]\d{9}$/.test(rawPhone)) {
       phoneInput?.focus();
@@ -806,16 +818,16 @@ function initRegister() {
   const payView = which => $$('[data-pay-view]').forEach(v => v.hidden = v.dataset.payView !== which);
   function toPayment(s) {
     const r = s || (pendingCheckout && pendingCheckout.student) || student || {};
-    const courseText = r.branch && !r.course?.includes(r.branch) ? `${r.course} (${r.branch})` : (r.course || 'B.Tech');
+    const courseText = r.branch && !r.course?.includes(r.branch) ? `${r.course} (${r.branch})` : (r.course || '—');
 
     const nameEl = $('#pay-student-name');
-    if (nameEl) nameEl.textContent = r.name || 'Student';
+    if (nameEl) nameEl.textContent = r.name || '—';
     const rollEl = $('#pay-student-roll');
     if (rollEl) rollEl.textContent = r.roll || '';
     const phoneEl = $('#pay-student-phone');
     if (phoneEl) phoneEl.textContent = r.phone ? '+91 ' + r.phone : '—';
     const courseEl = $('#pay-student-course');
-    if (courseEl) courseEl.textContent = `${courseText} · Year ${r.year || '1'}`;
+    if (courseEl) courseEl.textContent = `${courseText} · Year ${r.year || '—'}`;
     const avatarEl = $('#pay-avatar');
     if (avatarEl) avatarEl.textContent = initials(r.name);
     const amountEl = $('#pay-total-amount');
@@ -877,7 +889,7 @@ function initRegister() {
     $('#success-title').textContent = returning ? `You're already registered, ${first}` : `You're in, ${first}.`;
     let regId = s.regId || s.uid || '—';
     $('#success-reg').textContent = regId.length > 15 ? regId.slice(0, 15) + '...' : regId;
-    $('#success-ticket').textContent = s.ticketId || s.ticketNumber || ('TK-' + String(regId).slice(-4).toUpperCase());
+    $('#success-ticket').textContent = s.ticketId || s.ticketNumber || '—';
     $('#success-mail').textContent = s.roll;
     
     const dashBtn = $('.reg-actions a[href="/dashboard"]');
@@ -1653,6 +1665,18 @@ function initAdmin() {
       <p style="margin-top:8px;font-size:13px;color:var(--muted)">This removes their registration, cancels their ticket (${esc(p.ticketId || 'none')}), frees up their seat, and resets their account so they can register again immediately.</p>`,
     onConfirm: async () => {
       try {
+        // Preserve the ticket number permanently before deleting the participant.
+        // The payment server also reserves every newly issued ticket atomically.
+        if (p.ticketId) {
+          await fs.setDoc(fs.doc(db, 'ticketReservations', p.ticketId), {
+            ticketId: p.ticketId,
+            uid: p.id,
+            name: p.name || '',
+            status: 'deleted',
+            deletedAt: fs.serverTimestamp()
+          }, { merge: true });
+        }
+
         // 1. Delete registration from Firestore
         await fs.deleteDoc(fs.doc(db, 'registrations', p.id));
 
@@ -1695,6 +1719,26 @@ function initAdmin() {
   });
 
   /** Participant details with the actions an organiser actually needs. */
+  const resetPassword = p => modal({
+    title: `Change password for ${esc(p.name)}`,
+    confirm: 'Change password',
+    cancel: 'Cancel',
+    body: `<p class="muted" style="margin-bottom:14px">Set a new password for this participant. They can use it immediately with their roll number.</p>
+      <div class="field"><label for="admin-new-password">New password</label><input class="input" id="admin-new-password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></div>
+      <p id="admin-password-error" role="alert" style="font-size:13px;color:var(--danger);margin-top:8px" hidden></p>`,
+    onOpen: dlg => setTimeout(() => $('#admin-new-password', dlg)?.focus(), 80),
+    onConfirm: async dlg => {
+      const input = $('#admin-new-password', dlg), error = $('#admin-password-error', dlg)
+      if (!input.value || input.value.length < 8) {
+        error.textContent = 'Password must be at least 8 characters.'
+        error.hidden = false
+        return false
+      }
+      await resetParticipantPassword(p.id, input.value)
+      toast(`Password changed for ${p.name}`, 'success')
+    }
+  });
+
   function personModal(p) {
     if (!p) return;
     const at = regAt(p), paidAt = ms(p.paidAt);
@@ -1707,6 +1751,7 @@ function initAdmin() {
         <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap">
           ${p.payment !== 'paid' ? '<button class="btn btn-primary btn-sm" data-a="paid">Mark as paid</button>' : ''}
           ${p.payment === 'paid' ? (p.ticket === 'revoked' ? '<button class="btn btn-secondary btn-sm" data-a="restore">Restore ticket</button>' : '<button class="btn btn-danger btn-sm" data-a="revoke">Revoke ticket</button>') : ''}
+          ${p.payment === 'paid' ? '<button class="btn btn-ghost btn-sm" data-a="password">Change password</button>' : ''}
           ${p.email ? '<button class="btn btn-ghost btn-sm" data-a="copy">Copy email</button>' : ''}
           <button class="btn btn-danger btn-sm" data-a="delete" style="margin-left:auto">${icon('trash')} Delete participant</button>
         </div>`,
@@ -1717,6 +1762,7 @@ function initAdmin() {
         if (a === 'paid') markPaid(p);
         if (a === 'revoke') revoke(p);
         if (a === 'restore') setTicket(p, 'issued');
+        if (a === 'password') resetPassword(p);
         if (a === 'delete') deleteParticipant(p);
       })
     });
@@ -2341,7 +2387,7 @@ let PAGE = location.pathname.replace(/^\/+|\/+$/g, '') || 'index';
 function mountPage() {
   if (!document.getElementById('page-' + PAGE)) PAGE = 'index';
   const t = document.getElementById('page-' + PAGE), d = t.dataset;
-  document.title = d.title;
+  document.title = 'CODE ARENA';
   document.body.dataset.page = d.bodyPage;
   if (d.bodyClass) document.body.className = d.bodyClass;
   const content = t.content.cloneNode(true);
@@ -2359,18 +2405,15 @@ function mountPage() {
 }
 
 export async function boot() {
-  // Mount public pages immediately with empty placeholders; only authoritative
-  // Firestore values are rendered, so stale cached event data cannot flash.
+  // Mount immediately so authenticated pages do not wait for remote config.
+  // Dynamic values remain placeholders until Firestore provides them.
   const isAuthGated = PAGE === 'admin' || PAGE === 'dashboard' || PAGE === 'arena';
+  mountPage();
+  hydrateIcons();
+  applyConfig();
   if (!isAuthGated) {
-    mountPage();
-    hydrateIcons();
-    applyConfig();
-
     const params = new URLSearchParams(location.search);
-    if (params.has('login')) {
-      openLogin(params.get('next') || '/dashboard');
-    }
+    if (params.has('login')) openLogin(params.get('next') || '/dashboard');
   }
 
   // 3. Authenticate and refresh config concurrently
@@ -2387,10 +2430,7 @@ export async function boot() {
     }
   }
 
-  if (isAuthGated) {
-    mountPage();
-    hydrateIcons();
-  }
+  if (isAuthGated) hydrateIcons();
   applyConfig();
   if (configured) {
     watchDoc('config/event', e => {

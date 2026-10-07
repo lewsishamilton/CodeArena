@@ -113,14 +113,31 @@ export function issue(uid, orderRef, order, p) {
     const regRef = db.doc(`registrations/${uid}`), statsRef = db.doc('config/stats'), cfgRef = db.doc('config/event')
     const [reg, stats, cfg] = await Promise.all([tx.get(regRef), tx.get(statsRef), tx.get(cfgRef)])
     if (reg.exists && reg.data()?.payment === 'paid') return
-    const paid = (stats.data()?.paid ?? 0) + 1, seq = (stats.data()?.seq ?? 0) + 1
+    const paid = (stats.data()?.paid ?? 0) + 1
+    let seq = (stats.data()?.seq ?? 0) + 1
     const s = order.student || (reg.exists ? reg.data() : {})
     const yy = String(cfg.data()?.edition || new Date().getFullYear()).slice(-2)
     const txnid = order.txnid || (orderRef ? orderRef.id : p.txnid)
     const payuId = p.mihpayid || txnid
+    let ticketId
+    for (let offset = 0; offset < 1000; offset++) {
+      const candidateSeq = seq + offset
+      const candidate = `TK-${String(candidateSeq).padStart(2, '0')}`
+      const reservation = await tx.get(db.doc(`ticketReservations/${candidate}`))
+      const activeTicket = await tx.get(db.collection('registrations').where('ticketId', '==', candidate).limit(1))
+      if (!reservation.exists && activeTicket.empty) {
+        seq = candidateSeq
+        ticketId = candidate
+        break
+      }
+    }
+    if (!ticketId) throw new HttpError(409, 'No unique ticket number is available. Contact the organiser.')
 
     tx.set(statsRef, { paid, seq }, { merge: true })
     if (orderRef) tx.update(orderRef, { status: 'paid', paymentId: payuId })
+    tx.create(db.doc(`ticketReservations/${ticketId}`), {
+      ticketId, uid, status: 'active', issuedAt: FieldValue.serverTimestamp()
+    })
     const regData = {
       uid,
       roll: s.roll || order.roll || '',
@@ -145,7 +162,7 @@ export function issue(uid, orderRef, order, p) {
       paidAt: p.addedon ? new Date(p.addedon) : null,
       seq,
       regId: `CA${yy}-${String(seq).padStart(4, '0')}`,
-      ticketId: `TK-${String(seq).padStart(2, '0')}`,
+      ticketId,
       registeredAt: reg.exists && reg.data()?.createdAt ? reg.data().createdAt : FieldValue.serverTimestamp()
     }
     tx.set(regRef, regData, { merge: true })

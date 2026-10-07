@@ -225,12 +225,16 @@ async function fetchStudent(roll) {
 }
 
 /** Eligibility + seat checks before showing details or taking money. */
-export async function checkCanRegister(roll) {
+export async function checkCanRegister(roll, { allowExisting = false } = {}) {
   if (!/^[A-Z0-9]{10}$/.test(roll)) throw new HttpError(400, 'Enter a valid 10-character roll number.')
+  let alreadyRegistered = false
   if (db) {
     const taken = await db.collection('registrations').where('roll', '==', roll).get()
     const paidDoc = taken.docs.find(d => d.data()?.payment === 'paid')
-    if (paidDoc) throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
+    alreadyRegistered = Boolean(paidDoc)
+    if (alreadyRegistered && !allowExisting) {
+      throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
+    }
   }
   let cfg = {}
   if (db) {
@@ -242,7 +246,7 @@ export async function checkCanRegister(roll) {
   if (db) {
     try {
       const paid = (await db.doc('config/stats').get()).data()?.paid ?? 0
-      if (cfg.capacity && paid >= cfg.capacity) throw new HttpError(409, 'All seats are taken.')
+      if (cfg.capacity && paid >= cfg.capacity && !alreadyRegistered) throw new HttpError(409, 'All seats are taken.')
     } catch (_) {}
   }
   if (cfg.fee === undefined) cfg.fee = 1
@@ -250,5 +254,5 @@ export async function checkCanRegister(roll) {
   if (cfg.eligibleYears?.length && !cfg.eligibleYears.map(String).includes(s.year)) {
     throw new HttpError(403, `This contest is open to year ${cfg.eligibleYears.join(' & ')} students only.`)
   }
-  return { student: s, cfg }
+  return { student: s, cfg, alreadyRegistered }
 }

@@ -115,22 +115,6 @@ export async function getRegistration() {
           }
         }
       } catch (_) {}
-      // Fallback 2: Check if there is an existing paid registration with this roll number
-      try {
-        const roll = session.user.email?.split('@')[0]?.split('_v')[0]?.toUpperCase();
-        if (roll) {
-          const qRoll = fs.query(fs.collection(db, 'registrations'), fs.where('roll', '==', roll), fs.where('payment', '==', 'paid'));
-          const rSnap = await fs.getDocs(qRoll).catch(() => null);
-          if (rSnap && !rSnap.empty) {
-            const matched = rSnap.docs[0];
-            session.reg = { uid: matched.id, ...matched.data() };
-            // Auto-heal current uid
-            fs.setDoc(fs.doc(db, 'registrations', session.user.uid), session.reg, { merge: true }).catch(() => {});
-            try { localStorage.setItem(REG_CACHE_KEY(session.user.uid), JSON.stringify(session.reg)); } catch (_) {}
-            return session.reg;
-          }
-        }
-      } catch (_) {}
       session.reg = null
       try { localStorage.removeItem(REG_CACHE_KEY(session.user.uid)) } catch (_) {}
     }
@@ -207,6 +191,10 @@ export async function logout() {
 /** Creates the student's login (roll number + password) and signs them in. */
 export async function requestEnrollmentCode(roll, email) {
   return api('request-enrollment', { roll, email })
+}
+
+export async function resetParticipantPassword(uid, password) {
+  return api('admin-reset-password', { uid, password })
 }
 
 export async function createAccount(roll, password, code) {

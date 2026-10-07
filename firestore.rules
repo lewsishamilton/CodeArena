@@ -75,6 +75,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Ticket reservations are permanent. Deleting a participant must not make
+    // their previous ticket number available to a later participant.
+    match /ticketReservations/{ticketId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /announcements/{id} {
       allow read: if true;
       allow write: if isAdmin();
