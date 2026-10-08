@@ -178,7 +178,7 @@ async function api(path, data = {}) {
   try { r = await fetch('/api/' + path, { method: 'POST', headers, body: JSON.stringify(data) }) }
   catch { throw new Error('Network problem. Check your connection and try again.') }
   const d = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(d.error || 'Server error. Please try again.')
+  if (!r.ok) throw Object.assign(new Error(d.error || 'Server error. Please try again.'), { code: `server ${r.status}` })
   return d
 }
 
@@ -276,12 +276,17 @@ export const ms = v => v == null ? null : typeof v.toMillis === 'function' ? v.t
 /** Human-readable message for Firebase errors. */
 export function errorMessage(e) {
   const code = e?.code || ''
+  const msg = message(e, code)
+  // Short source tag (e.g. [auth/too-many-requests] or [server 429]) so a screenshot shows which service failed
+  return code ? `${msg} [${code}]` : msg
+}
+function message(e, code) {
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email') return 'Wrong ID or password.'
   if (code === 'auth/operation-not-allowed') return 'Login is not enabled yet. The organisers must turn on Email/Password sign-in in Firebase.'
   if (code === 'auth/email-already-in-use') return 'This roll number is already registered. Log in instead.'
   // Firebase locks an account after repeated wrong passwords; the lock does not clear after a minute,
   // and an organiser password reset unlocks it immediately.
-  if (code === 'auth/too-many-requests') return 'This login is temporarily locked after too many wrong passwords. Ask an organiser to reset your password (Admin → Participants), or try again later.'
+  if (code === 'auth/too-many-requests') return 'Firebase has temporarily blocked logins from this device or network after too many failed attempts. Try again later or on another network (e.g. mobile data). If it is only your account, an organiser can unlock it by resetting your password (Admin → Participants).'
   if (code === 'auth/network-request-failed' || code === 'unavailable') return 'Network problem. Check your connection and try again.'
   if (code === 'permission-denied' && !e.message) return 'You don\'t have access to this.'
   return e?.message?.replace(/^Firebase: /, '').replace(/ \(.*\)\.?$/, '') || 'Something went wrong. Please try again.'
