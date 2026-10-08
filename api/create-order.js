@@ -11,6 +11,14 @@ export default handler(async req => {
       throw new HttpError(409, 'You are already registered. Open your ticket from the dashboard.')
     }
   }
+  // A second click within a minute (double click, quick retry) reuses the same PayU checkout session.
+  // Opening many sessions quickly is what makes PayU answer "Too many Requests. Please try after 60 seconds".
+  if (db) {
+    const recent = (await db.collection('orders').where('uid', '==', uid).get()).docs
+      .map(d => d.data())
+      .find(o => o.status === 'created' && o.checkout && Date.now() - (o.createdAt?.toMillis?.() ?? 0) < 60_000)
+    if (recent) return recent.checkout
+  }
   const { student: s, cfg } = await checkCanRegister(roll)
   if (!(cfg.fee > 0)) {
     throw new HttpError(409, 'The registration fee has not been set by the organisers yet.')
@@ -42,20 +50,7 @@ export default handler(async req => {
     salt: PAYU_SALT
   })
 
-  if (db) {
-    await db.doc(`orders/${txnid}`).set({
-      uid,
-      roll,
-      txnid,
-      amount,
-      currency: 'INR',
-      student: s,
-      status: 'created',
-      createdAt: FieldValue.serverTimestamp()
-    })
-  }
-
-  return {
+  const checkout = {
     key: PAYU_KEY,
     txnid,
     orderId: txnid, // alias for backwards compatibility
@@ -72,4 +67,18 @@ export default handler(async req => {
     boltUrl: PAYU_BOLT_URL,
     paymentUrl: PAYU_PAYMENT_URL
   }
+  if (db) {
+    await db.doc(`orders/${txnid}`).set({
+      uid,
+      roll,
+      txnid,
+      amount,
+      currency: 'INR',
+      student: s,
+      status: 'created',
+      checkout,
+      createdAt: FieldValue.serverTimestamp()
+    })
+  }
+  return checkout
 })

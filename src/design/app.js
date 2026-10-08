@@ -649,6 +649,9 @@ function renderHeroPanel() {
    PAGE: REGISTRATION — roll lookup → create password → PayU → ticket
    ========================================================================= */
 function initRegister() {
+  // The college records API sleeps when idle and takes 30–60 s to wake: start waking it now,
+  // while the student is still typing their roll number.
+  fetch('https://mlrit-api.onrender.com/', { mode: 'no-cors' }).catch(() => {});
   const go = step => {
     $$('[data-step]').forEach(p => p.hidden = Number(p.dataset.step) !== step);
     $$('.stepper li').forEach((li, i) => {
@@ -866,7 +869,10 @@ function initRegister() {
   }
 
   // Payment: PayU Checkout, then the ticket is issued
+  let checkoutStarted = false;
   async function processCheckout() {
+    // One PayU hand-off per page: a second press while the first is redirecting would open another session
+    if (checkoutStarted) return;
     if (!isRegistrationOpen()) {
       payView('form');
       return toast(isCapacityReached() ? `Target capacity reached (${CONFIG.capacity} seats taken). Registration is closed.` : 'Registrations are closed.', 'error');
@@ -877,6 +883,7 @@ function initRegister() {
       return;
     }
 
+    checkoutStarted = true;
     payView('processing');
     try {
       const paid = await payWithPayU({
@@ -892,6 +899,7 @@ function initRegister() {
       go(3);
       toast(`Payment confirmed! Ticket ${paid.ticketNumber || paid.ticketId || 'issued'} generated.`);
     } catch (e) {
+      checkoutStarted = false;   // the hand-off didn't happen; allow a retry
       if (e?.cancelled) {
         payView('form');
         toast('Payment was cancelled', 'info');

@@ -323,6 +323,18 @@ const ROMAN = { I: '1', II: '2', III: '3', IV: '4' }
 const titleCase = s => s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 export const normRoll = v => String(v ?? '').trim().toUpperCase()
 
+/** College records change rarely; the API sleeps when idle (30–60 s to wake). Each registration needs the
+ *  details three times (lookup, account, order), so keep them in Firestore and only call the API on a miss. */
+const STUDENT_CACHE_MS = 7 * 24 * 3600 * 1000
+async function cachedStudent(roll) {
+  const ref = db?.doc(`studentCache/${roll}`)
+  const hit = ref && (await ref.get().catch(() => null))?.data()
+  if (hit && Date.now() - hit.fetchedAt < STUDENT_CACHE_MS) return hit.student
+  const student = await fetchStudent(roll)
+  ref?.set({ student, fetchedAt: Date.now() }).catch(() => {})
+  return student
+}
+
 async function fetchStudent(roll) {
   let res
   try { res = await fetch('https://mlrit-api.onrender.com/student/' + encodeURIComponent(roll), { signal: AbortSignal.timeout(55_000) }) }
@@ -340,30 +352,26 @@ async function fetchStudent(roll) {
 /** Eligibility + seat checks before showing details or taking money. */
 export async function checkCanRegister(roll, { allowExisting = false } = {}) {
   if (!/^[A-Z0-9]{10}$/.test(roll)) throw new HttpError(400, 'Enter a valid 10-character roll number.')
-  let alreadyRegistered = false
-  if (db) {
-    const taken = await db.collection('registrations').where('roll', '==', roll).get()
-    const paidDoc = taken.docs.find(d => d.data()?.payment === 'paid')
-    alreadyRegistered = Boolean(paidDoc)
-    if (alreadyRegistered && !allowExisting) {
-      throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
-    }
+  // Everything at once: the student lookup is the slow part, the database reads overlap with it
+  const studentP = cachedStudent(roll)
+  studentP.catch(() => {})   // handled below; avoids an unhandled rejection if a check throws first
+  const [taken, cfgDoc, statsDoc] = db
+    ? await Promise.all([
+        db.collection('registrations').where('roll', '==', roll).get(),
+        db.doc('config/event').get().catch(() => null),
+        db.doc('config/stats').get().catch(() => null)
+      ])
+    : [null, null, null]
+  const alreadyRegistered = Boolean(taken?.docs.some(d => d.data()?.payment === 'paid'))
+  if (alreadyRegistered && !allowExisting) {
+    throw new HttpError(409, 'This roll number is already registered. Log in with your roll number and password.')
   }
-  let cfg = {}
-  if (db) {
-    try {
-      cfg = (await db.doc('config/event').get()).data() ?? {}
-    } catch (_) {}
-  }
+  const cfg = cfgDoc?.data() ?? {}
   if (cfg.regOpen === false) throw new HttpError(403, 'Registrations are closed.')
-  if (db) {
-    try {
-      const paid = (await db.doc('config/stats').get()).data()?.paid ?? 0
-      if (cfg.capacity && paid >= cfg.capacity && !alreadyRegistered) throw new HttpError(409, 'All seats are taken.')
-    } catch (_) {}
-  }
+  const paid = statsDoc?.data()?.paid ?? 0
+  if (cfg.capacity && paid >= cfg.capacity && !alreadyRegistered) throw new HttpError(409, 'All seats are taken.')
   if (cfg.fee === undefined) cfg.fee = 1
-  const s = await fetchStudent(roll)
+  const s = await studentP
   if (cfg.eligibleYears?.length && !cfg.eligibleYears.map(String).includes(s.year)) {
     throw new HttpError(403, `This contest is open to year ${cfg.eligibleYears.join(' & ')} students only.`)
   }
