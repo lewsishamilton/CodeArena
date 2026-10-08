@@ -19,16 +19,6 @@ export const rollEmail = (roll, version = 1) => {
   return (version && version > 1) ? `${r}_v${version}@students.codearena.local` : `${r}@students.codearena.local`
 }
 
-export async function getRollVersion(roll) {
-  if (!configured) return 1
-  try {
-    const snap = await fs.getDoc(fs.doc(db, 'config', 'roll_versions'))
-    return snap.exists() ? (snap.data()?.[String(roll).trim().toUpperCase()] || 1) : 1
-  } catch (_) {
-    return 1
-  }
-}
-
 const app = configured ? initializeApp({
   apiKey: env.VITE_FIREBASE_API_KEY,
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -133,42 +123,16 @@ export async function login(roll, password) {
     return loginAdmin('admin', password)
   }
 
-  // If input contains '@', try signing in with that email directly
-  if (input.includes('@')) {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, input, password)
-      await setUser(cred.user)
-      await getRegistration()
-      return session
-    } catch (_) {}
+  // Exactly one sign-in attempt per login: every failed browser sign-in counts toward Firebase's
+  // per-network lockout, and students share the college network.
+  let email = input
+  if (!input.includes('@')) {
+    const cleanRoll = input.toUpperCase()
+    email = (await api('login-email', { roll: cleanRoll }).catch(() => null))?.email || rollEmail(cleanRoll)
   }
-
-  const cleanRoll = input.toUpperCase()
-  const version = await getRollVersion(cleanRoll)
-
-  // Prioritize canonical email (version 1), then version from config, then versions 2-5 fallback
-  const attempts = [rollEmail(cleanRoll, 1)]
-  if (version > 1) attempts.unshift(rollEmail(cleanRoll, version))
-  for (let v = 5; v >= 2; v--) {
-    const em = rollEmail(cleanRoll, v)
-    if (!attempts.includes(em)) attempts.push(em)
-  }
-
-  let lastErr = null
-  for (const email of attempts) {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password)
-      await setUser(cred.user)
-      await getRegistration()
-      return session
-    } catch (e) {
-      lastErr = e
-      if (e.code !== 'auth/invalid-credential' && e.code !== 'auth/wrong-password' && e.code !== 'auth/user-not-found') {
-        throw e
-      }
-    }
-  }
-  throw lastErr || new Error('Invalid roll number or password.')
+  const cred = await signInWithEmailAndPassword(auth, email, password)
+  await setUser(cred.user)
+  return session
 }
 
 /** Organiser login (the /admin screen): admin ID + password. */
@@ -196,17 +160,10 @@ export async function resetParticipantPassword(uid, password) {
 export async function createAccount(roll, password) {
   if (!configured) throw new Error('The site is not connected to Firebase yet.')
   const cleanRoll = String(roll).trim().toUpperCase()
-  const email = rollEmail(cleanRoll)
-  try {
-    const credential = await signInWithEmailAndPassword(auth, email, password)
-    await setUser(credential.user)
-    return session
-  } catch (error) {
-    // An unpaid account may already exist from a cancelled checkout. A wrong
-    // password must fall through to the server, which safely resets that
-    // orphan account after confirming it has no paid registration.
-    if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/wrong-password'].includes(error.code)) throw error
-  }
+  // Straight to the server: it creates the login, or reuses an unpaid one from a cancelled checkout.
+  // Never "try a sign-in first" here — for a new student that sign-in always fails, and Firebase
+  // throttles failed sign-ins per network, so on shared college Wi-Fi a few registrations would
+  // lock everyone out with auth/too-many-requests ("wait a minute").
   const enrolled = await api('complete-enrollment', { roll: cleanRoll, password })
   const credential = await signInWithCustomToken(auth, enrolled.token)
   await setUser(credential.user)
