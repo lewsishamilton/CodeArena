@@ -1069,8 +1069,10 @@ async function initDashboard() {
   };
 
   // 1. Initialize sidebar shell immediately so navigation between views works instantly
+  const rulesSrc = document.getElementById('page-index')?.content.querySelector('#rules .rules-wrap');
+  if (rulesSrc) { $('#dash-rules').replaceChildren(rulesSrc.cloneNode(true)); hydrateIcons($('#dash-rules')); }
   initAppShell({
-    overview: 'Overview', registration: 'My registration', ticket: 'My ticket', arena: 'Competition arena', results: 'Results', certificates: 'Certificates', profile: 'Profile'
+    overview: 'Overview', registration: 'My registration', ticket: 'My ticket', arena: 'Competition arena', rules: 'Rules & scoring', results: 'Results', certificates: 'Certificates', profile: 'Profile'
   }, viewId => {
     if (viewId === 'results' || viewId === 'certificates') {
       refreshResultsView();
@@ -2033,7 +2035,7 @@ function initAdmin() {
     if (!f.name.trim()) return toast('Event name is required', 'error');
     if (!f.date) return toast('Pick a start date and time', 'error');
     const capacity = Number(f.capacity), fee = Number(f.fee), dur = Number(f.durationMin);
-    if (!(capacity >= 10)) return toast('Capacity must be at least 10', 'error');
+    if (!(capacity >= 1)) return toast('Capacity must be at least 1', 'error');
     if (!(fee >= 1)) return toast('Fee must be at least ₹1', 'error');
     if (!(dur >= 15 && dur <= 300)) return toast('Duration must be between 15 and 300 minutes', 'error');
     const event = {
@@ -2448,6 +2450,11 @@ export async function boot() {
 
   // 3. Authenticate and refresh config concurrently
   await Promise.all([ready(), loadConfig()]);
+
+  if (PAGE === 'index' && session.user && !session.isAdmin && session.reg?.payment === 'paid') {
+    location.replace('/dashboard' + (location.hash === '#rules' ? '#rules' : ''));
+    return;
+  }
 
   if (PAGE === 'admin' && !session.isAdmin) PAGE = 'admin-login';
   if (PAGE === 'arena') {

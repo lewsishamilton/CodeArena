@@ -8,6 +8,7 @@
       <a href="#rules">Rules</a>
       <a href="#schedule">Schedule</a>
       <a href="#faq">FAQ</a>
+      <a href="#contact">Contact</a>
     </nav>
     <div class="actions">
       <a class="btn btn-ghost btn-sm" href="/admin" data-admin-link>Admin</a>
@@ -22,6 +23,7 @@
     <a href="#rules">Rules</a>
     <a href="#schedule">Schedule</a>
     <a href="#faq">FAQ</a>
+      <a href="#contact">Contact</a>
     <a href="/admin" data-admin-link>Admin</a>
     <a href="/dashboard" data-dashboard-link>Dashboard</a>
     <a class="btn btn-primary btn-sm" href="/register" style="margin-top:16px;width:100%;">Register now</a>
@@ -35,7 +37,7 @@
       <div>
         <span class="hero-tag"><span class="live-dot"></span><strong id="hero-reg-state">Registrations open</strong> · <span data-cfg="capacity">—</span> seats</span>
         <h1><span>Think Fast.</span><span>Code Smart.</span><span class="accent">Compete.</span></h1>
-        <p class="hero-sub">Three challenges. One arena. A chance to prove what you can build.</p>
+        <p class="hero-sub">Eight challenges. One arena. A chance to prove what you can build.</p>
         <div class="hero-cta">
           <a class="btn btn-primary btn-lg" href="/register">Register now <i data-icon="arrow"></i></a>
         </div>
@@ -82,14 +84,14 @@
         <div>
           <h2 style="font-size:clamp(30px,3.6vw,44px);letter-spacing:-0.035em;max-width:760px">A two-hour sprint for students who think in code.</h2>
           <div class="about-copy" style="margin-top:28px">
-            <p><span data-cfg="name">CODE ARENA</span> is an inter-college competitive programming contest. Every participant gets the same three problems, the same clock and the same judge — what separates the board is how cleanly you think under pressure.</p>
-            <p>It's built for every level. Problem A is solvable by anyone comfortable with loops; Problem C will make experienced competitive programmers slow down. Partial progress still counts on the leaderboard.</p>
+            <p><span data-cfg="name">CODE ARENA</span> is an inter-college competitive programming contest. Every participant gets the same eight challenges, the same clock and the same judge — what separates the board is how cleanly you think under pressure.</p>
+            <p>It's built for every level. The first challenges are solvable by anyone comfortable with loops; the last ones will make experienced competitive programmers slow down. Partial progress still counts on the leaderboard.</p>
           </div>
         </div>
       </div>
       <div class="stat-strip">
         <div><strong data-cfg="capacity">—</strong><span>Seats, first come first served</span></div>
-        <div><strong>3</strong><span>Problems of rising difficulty</span></div>
+        <div><strong>8</strong><span>Challenges of rising difficulty</span></div>
         <div><strong data-cfg="duration">—</strong><span>Minutes on the clock</span></div>
         <div><strong>4</strong><span>Languages: C, C++, Python, Java</span></div>
       </div>
@@ -110,7 +112,7 @@
         <li><span class="node">01</span><h3>Register</h3><p>Sign in with Google and fill in your college details.</p></li>
         <li><span class="node">02</span><h3>Pay the fee</h3><p>Pay <span data-cfg="fee">—</span> online by UPI, card or net banking.</p></li>
         <li><span class="node">03</span><h3>Get your ticket</h3><p>A QR ticket is issued instantly to your dashboard.</p></li>
-        <li><span class="node">04</span><h3>Compete</h3><p>Solve three problems in the arena before the clock runs out.</p></li>
+        <li><span class="node">04</span><h3>Compete</h3><p>Solve eight challenges in the arena before the clock runs out.</p></li>
       </ol>
     </div>
   </section>
@@ -326,6 +328,23 @@
       <a class="btn btn-primary btn-lg" href="/register">Register now <i data-icon="arrow"></i></a>
     </div>
   </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section class="section" id="contact">
+    <div class="container">
+      <div class="section-head">
+        <div class="eyebrow"><b>08</b>Contact us</div>
+        <div><h2>Need help?</h2><p>For any issue with registration, payment, login or your ticket, call or message us.</p></div>
+      </div>
+      <div class="card card-pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+          <div><h3 style="font-size:17px">Facing an issue?</h3><p class="muted" style="margin-top:4px;font-size:14px">Payment, login or ticket problems — call or message the organisers.</p></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn btn-secondary" href="tel:+918008390127">📞 80083 90127</a>
+            <a class="btn btn-secondary" href="tel:+919391972948">📞 93919 72948</a>
+          </div>
+        </div>
+    </div>
+  </section>
 </main>
 
 <footer class="site-footer">
@@ -538,13 +557,18 @@
           <p class="muted" style="font-size:12px;text-align:center;margin-top:14px">
             🔒 Payment is processed securely by PayU. Your account and entry ticket are officially generated and saved only after payment is confirmed.
           </p>
+          <div class="card card-pad" style="margin-top:14px;font-size:13.5px;border-color:var(--warn)">
+            <strong style="color:var(--text)">If your internet drops after paying</strong> — or you see a page full of code or an error —
+            <strong style="color:var(--text)">do not pay again.</strong> Reopen this website and log in with your roll number and password:
+            your payment is confirmed automatically and your ticket appears in your dashboard.
+          </div>
         </div>
 
         <div data-pay-view="processing" hidden>
           <div class="state-block" style="padding-bottom:32px">
             <div class="state-icon wait"><div class="spinner"></div></div>
             <h2>Processing payment with PayU…</h2>
-            <p>Confirming payment and generating your entry ticket. Please do not close or refresh this window.</p>
+            <p>Confirming payment and generating your entry ticket. If this takes long or your network drops, do not pay again — reopen the site and log in; your ticket will be there.</p>
           </div>
         </div>
 
@@ -631,6 +655,7 @@
       <a href="#registration"><i data-icon="file"></i>My registration</a>
       <a href="#ticket"><i data-icon="ticket"></i>My ticket</a>
       <a href="#arena"><i data-icon="code"></i>Competition arena</a>
+      <a href="#rules"><i data-icon="shield"></i>Rules &amp; scoring</a>
       <a href="#results"><i data-icon="trophy"></i>Results</a>
       <a href="#certificates"><i data-icon="award"></i>Certificates</a>
       <a href="#profile"><i data-icon="user"></i>Profile</a>
@@ -659,7 +684,7 @@
           <div class="dropdown-menu">
             <a href="#profile"><i data-icon="user"></i>Profile</a>
             <a href="#ticket"><i data-icon="ticket"></i>My ticket</a>
-            <a href="/"><i data-icon="home"></i>Event site</a>
+            <a href="#rules"><i data-icon="shield"></i>Rules &amp; scoring</a>
             <button data-signout><i data-icon="logout"></i>Sign out</button>
           </div>
         </details>
@@ -729,7 +754,7 @@
             <button data-enter-arena><i data-icon="code"></i>Open arena<span class="arrow">→</span></button>
             <a href="/leaderboard"><i data-icon="trophy"></i>View leaderboard<span class="arrow">→</span></a>
             <a href="#certificates"><i data-icon="award"></i>Certificates<span class="arrow">→</span></a>
-            <a href="/#rules"><i data-icon="shield"></i>Read the rules<span class="arrow">→</span></a>
+            <a href="#rules"><i data-icon="shield"></i>Read the rules<span class="arrow">→</span></a>
             <a href="#profile"><i data-icon="user"></i>Update profile<span class="arrow">→</span></a>
           </div>
         </div>
@@ -766,7 +791,7 @@
           <p id="arena-copy" class="text-2" style="margin-top:16px;max-width:560px"></p>
           <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap">
             <button class="btn btn-primary" data-enter-arena><i data-icon="play"></i> Open Competition Portal</button>
-            <a class="btn btn-secondary" href="/#rules">Rules &amp; guidelines</a>
+            <a class="btn btn-secondary" href="#rules">Rules &amp; guidelines</a>
           </div>
         </div>
         <div class="card"><div class="card-head"><h3>Before you begin</h3></div>
@@ -790,6 +815,18 @@
     </section>
 
     <!-- PROFILE -->
+    <section class="view" data-view="rules" hidden>
+      <div class="view-head"><div><h2>Rules &amp; scoring</h2><p>Read these before the contest. Breaking a rule can disqualify your entry.</p></div></div>
+      <div id="dash-rules"></div>
+      <div class="mt"><div class="card card-pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+          <div><h3 style="font-size:17px">Facing an issue?</h3><p class="muted" style="margin-top:4px;font-size:14px">Payment, login or ticket problems — call or message the organisers.</p></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn btn-secondary" href="tel:+918008390127">📞 80083 90127</a>
+            <a class="btn btn-secondary" href="tel:+919391972948">📞 93919 72948</a>
+          </div>
+        </div></div>
+    </section>
+
     <section class="view" data-view="profile" hidden>
       <div class="view-head"><div><h2>Profile</h2><p>Your name here is printed on your certificate.</p></div></div>
       <form class="card" id="profile-form" novalidate style="max-width:760px">
@@ -1134,7 +1171,7 @@
           <div class="form-grid"><div class="field"><label for="s-date">Start</label><input class="input" id="s-date" name="date" type="datetime-local"></div><div class="field"><label for="s-venue">Venue</label><input class="input" id="s-venue" name="venue"></div>
           <div class="field"><label for="s-org">Organiser</label><input class="input" id="s-org" name="organiser"></div><div class="field"><label for="s-college">College</label><input class="input" id="s-college" name="college"><span class="hint">Printed on tickets and the leaderboard</span></div></div></div>
         <div class="setting-row"><div><h4>Capacity &amp; fee</h4><p>Seats left is computed from paid registrations.</p></div>
-          <div class="form-grid"><div class="field"><label for="s-cap">Capacity</label><input class="input" id="s-cap" name="capacity" type="number" min="10" max="5000"></div><div class="field"><label for="s-fee">Registration fee (₹)</label><input class="input" id="s-fee" name="fee" type="number" min="1" max="10000"></div>
+          <div class="form-grid"><div class="field"><label for="s-cap">Capacity</label><input class="input" id="s-cap" name="capacity" type="number" min="1" max="5000"></div><div class="field"><label for="s-fee">Registration fee (₹)</label><input class="input" id="s-fee" name="fee" type="number" min="1" max="10000"></div>
           <div class="field"><label for="s-dur">Contest duration (minutes)</label><input class="input" id="s-dur" name="durationMin" type="number" min="15" max="300"></div><div class="field"><label for="s-years">Eligible years</label><input class="input" id="s-years" name="eligibleYears" placeholder="e.g. 2, 3"><span class="hint">Leave empty to allow every year</span></div></div></div>
         <div class="setting-row"><div><h4>Competition &amp; results portals</h4><p>External websites for the contest arena and results scoreboard.</p></div>
           <div class="form-grid">
