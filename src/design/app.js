@@ -71,6 +71,9 @@ const pad = (n, w = 2) => String(n).padStart(w, '0');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = n => (n == null || n === '' || isNaN(Number(n))) ? '—' : '₹' + Number(n).toLocaleString('en-IN');
 const initials = name => String(name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+/** The contest arena (external). Admin → Settings can point it elsewhere; it opens at the event start time. */
+const arenaUrl = () => CONFIG.compUrl || 'https://live.codemlrit.tech';
+const arenaOpensIn = () => eventDate() ? eventDate().getTime() - Date.now() : Infinity;
 const eventDate = () => {
   if (!CONFIG.date) return null;
   const d = new Date(CONFIG.date);
@@ -1104,16 +1107,24 @@ async function initDashboard() {
   if (compStatusEl) compStatusEl.innerHTML = badge;
   const arenaCopyEl = $('#arena-copy');
   if (arenaCopyEl) {
-    arenaCopyEl.textContent = CONFIG.compUrl
-      ? 'The competition challenges are hosted on the official competition portal. Click below to open and participate.'
-      : 'The competition challenges are hosted on an external platform. The organisers will activate the official link before the contest begins.';
+    arenaCopyEl.textContent = 'The challenges are hosted on the official competition portal. The Enter arena button unlocks when the countdown reaches zero; press it to open the arena.';
   }
 
-  // Countdown to event start
+  // Countdown to event start. The arena buttons stay locked (showing the same countdown) until then.
   const tick = () => {
-    let left = Math.max(0, (eventDate()?.getTime() ?? 0) - Date.now());
+    const leftMs = arenaOpensIn();
+    let left = Math.max(0, leftMs);
     const parts = [864e5, 36e5, 6e4, 1e3].map(u => { const v = Math.floor(left / u); left -= v * u; return v; });
     $$('#countdown strong').forEach((el, i) => el.textContent = pad(parts[i]));
+    const locked = leftMs > 0;
+    $$('[data-enter-arena]').forEach(b => {
+      b.dataset.label ??= b.innerHTML;
+      b.disabled = locked;
+      b.style.opacity = locked ? '0.7' : '';
+      b.innerHTML = locked
+        ? (eventDate() ? `🔒 Arena opens in ${parts[0] ? parts[0] + 'd ' : ''}${pad(parts[1])}:${pad(parts[2])}:${pad(parts[3])}` : '🔒 Arena opens at the event start')
+        : b.dataset.label;
+    });
   };
   tick(); setInterval(tick, 1000);
 
@@ -1178,16 +1189,8 @@ async function initDashboard() {
 
   // Arena entry — external competition platform
   const openArenaPortal = () => {
-    if (CONFIG.compUrl) {
-      window.open(CONFIG.compUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      modal({
-        title: 'Competition Portal',
-        body: '<p>The competition is hosted on an external platform. The organisers will activate the official link before the contest begins.</p><p style="margin-top:8px" class="muted">Check the announcements section for live updates.</p>',
-        confirm: 'Got it',
-        cancel: null
-      });
-    }
+    if (arenaOpensIn() > 0) return toast('The arena unlocks when the countdown reaches zero.', 'warn');
+    window.open(arenaUrl(), '_blank', 'noopener,noreferrer');
   };
   document.addEventListener('click', e => {
     if (e.target.closest('[data-enter-arena]')) {
@@ -2458,13 +2461,8 @@ export async function boot() {
 
   if (PAGE === 'admin' && !session.isAdmin) PAGE = 'admin-login';
   if (PAGE === 'arena') {
-    if (CONFIG.compUrl) {
-      location.replace(CONFIG.compUrl);
-      return;
-    } else {
-      location.replace('/dashboard#arena');
-      return;
-    }
+    location.replace(arenaOpensIn() > 0 ? '/dashboard#arena' : arenaUrl());
+    return;
   }
 
   if (isAuthGated) hydrateIcons();

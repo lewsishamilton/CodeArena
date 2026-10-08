@@ -1941,3 +1941,11 @@ html, body {
   background-position: center;
   background-repeat: no-repeat;
 }
+
+/* File pickers (admin certificate templates) styled like the other inputs */
+input[type=file].input { padding: 6px 8px; cursor: pointer; color: var(--text-2); }
+input[type=file].input::file-selector-button {
+  margin-right: 12px; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--elev); color: var(--text); font: inherit; font-size: 13px; font-weight: 550; cursor: pointer;
+}
+input[type=file].input::file-selector-button:hover { border-color: var(--border-strong); }

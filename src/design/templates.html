@@ -337,10 +337,11 @@
         <div><h2>Need help?</h2><p>For any issue with registration, payment, login or your ticket, call or message us.</p></div>
       </div>
       <div class="card card-pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-          <div><h3 style="font-size:17px">Facing an issue?</h3><p class="muted" style="margin-top:4px;font-size:14px">Payment, login or ticket problems — call or message the organisers.</p></div>
+          <div><h3 style="font-size:17px">Facing an issue?</h3><p class="muted" style="margin-top:4px;font-size:14px">Payment, login or ticket problems — call, message or email the organisers.</p></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a class="btn btn-secondary" href="tel:+918008390127">📞 80083 90127</a>
             <a class="btn btn-secondary" href="tel:+919391972948">📞 93919 72948</a>
+            <a class="btn btn-secondary" href="mailto:codearena@gmail.com">✉️ codearena@gmail.com</a>
           </div>
         </div>
     </div>
@@ -751,7 +752,7 @@
           <div class="card-head"><h3>Quick actions</h3></div>
           <div class="card-body quick">
             <a href="/ticket?print=1"><i data-icon="printer"></i>Print ticket<span class="arrow">→</span></a>
-            <button data-enter-arena><i data-icon="code"></i>Open arena<span class="arrow">→</span></button>
+            <button data-enter-arena><i data-icon="code"></i>Enter arena<span class="arrow">→</span></button>
             <a href="/leaderboard"><i data-icon="trophy"></i>View leaderboard<span class="arrow">→</span></a>
             <a href="#certificates"><i data-icon="award"></i>Certificates<span class="arrow">→</span></a>
             <a href="#rules"><i data-icon="shield"></i>Read the rules<span class="arrow">→</span></a>
@@ -790,7 +791,7 @@
           <div style="display:flex;align-items:center;gap:12px"><span id="arena-status"></span><span class="muted" style="font-size:13px"><span data-cfg="date">—</span> · <span data-cfg="time">—</span></span></div>
           <p id="arena-copy" class="text-2" style="margin-top:16px;max-width:560px"></p>
           <div style="display:flex;gap:8px;margin-top:24px;flex-wrap:wrap">
-            <button class="btn btn-primary" data-enter-arena><i data-icon="play"></i> Open Competition Portal</button>
+            <button class="btn btn-primary" data-enter-arena><i data-icon="play"></i> Enter arena</button>
             <a class="btn btn-secondary" href="#rules">Rules &amp; guidelines</a>
           </div>
         </div>
@@ -819,10 +820,11 @@
       <div class="view-head"><div><h2>Rules &amp; scoring</h2><p>Read these before the contest. Breaking a rule can disqualify your entry.</p></div></div>
       <div id="dash-rules"></div>
       <div class="mt"><div class="card card-pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-          <div><h3 style="font-size:17px">Facing an issue?</h3><p class="muted" style="margin-top:4px;font-size:14px">Payment, login or ticket problems — call or message the organisers.</p></div>
+          <div><h3 style="font-size:17px">Facing an issue?</h3><p class="muted" style="margin-top:4px;font-size:14px">Payment, login or ticket problems — call, message or email the organisers.</p></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a class="btn btn-secondary" href="tel:+918008390127">📞 80083 90127</a>
             <a class="btn btn-secondary" href="tel:+919391972948">📞 93919 72948</a>
+            <a class="btn btn-secondary" href="mailto:codearena@gmail.com">✉️ codearena@gmail.com</a>
           </div>
         </div></div>
     </section>
@@ -1155,9 +1157,9 @@
         <div class="field"><label for="cert-template-participation">Participation template (PNG/JPEG)</label><input class="input" id="cert-template-participation" type="file" accept="image/png,image/jpeg"><span class="hint" id="cert-template-participation-status">Not uploaded</span></div>
         <div class="field"><label for="cert-template-achievement">Excellence template (PNG/JPEG)</label><input class="input" id="cert-template-achievement" type="file" accept="image/png,image/jpeg"><span class="hint" id="cert-template-achievement-status">Not uploaded</span></div>
       </div></div>
-      <div class="grid g-3" id="cert-kpis"></div>
+      <div class="grid g-3 mt" id="cert-kpis"></div>
       <div class="card mt" id="issue-progress" hidden><div class="card-body"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px"><span>Generating certificates…</span><span class="num" id="issue-count"></span></div><div class="progress"><span id="issue-bar" style="width:0"></span></div></div></div>
-      <div class="card mt">      <div class="card-head"><h3>Certificates of excellence</h3></div>
+      <div class="card mt"><div class="card-head"><h3>Certificates of excellence</h3></div>
         <div class="table-wrap"><table class="table"><thead><tr><th>Rank</th><th>Recipient</th><th>Title</th><th>Certificate ID</th><th class="right">Preview</th></tr></thead><tbody id="cert-body"></tbody></table></div></div>
     </section>
 
@@ -1175,7 +1177,7 @@
           <div class="field"><label for="s-dur">Contest duration (minutes)</label><input class="input" id="s-dur" name="durationMin" type="number" min="15" max="300"></div><div class="field"><label for="s-years">Eligible years</label><input class="input" id="s-years" name="eligibleYears" placeholder="e.g. 2, 3"><span class="hint">Leave empty to allow every year</span></div></div></div>
         <div class="setting-row"><div><h4>Competition &amp; results portals</h4><p>External websites for the contest arena and results scoreboard.</p></div>
           <div class="form-grid">
-            <div class="field span-2"><label for="s-comp-url">External Competition Arena / Form URL</label><input class="input" id="s-comp-url" name="compUrl" placeholder="https://forms.gle/... or https://unstop.com/..." type="url"><span class="hint">Students clicking “Competition arena” in their dashboard will open this platform directly.</span></div>
+            <div class="field span-2"><label for="s-comp-url">External Competition Arena / Form URL</label><input class="input" id="s-comp-url" name="compUrl" placeholder="https://live.codemlrit.tech" type="url"><span class="hint">Leave empty to use https://live.codemlrit.tech. Students' “Enter arena” button unlocks at the event start time (Date &amp; venue → Start).</span></div>
             <div class="field span-2"><label for="s-results-url">External Results / Leaderboard URL</label><input class="input" id="s-results-url" name="resultsUrl" placeholder="https://unstop.com/... or https://docs.google.com/spreadsheets/..." type="url"><span class="hint">The external website where official results and final leaderboard are published.</span></div>
           </div></div>
         <div class="setting-row"><div><h4>Policies</h4><p>Applied to registration.</p></div>
