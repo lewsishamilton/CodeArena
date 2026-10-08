@@ -9,107 +9,31 @@ const PAYU_MODES = {
   EMI: 'EMI'
 }
 
-/** Asks PayU (not the browser) whether any of the student's orders has been paid. If so,
- *  issues the registration + next ticket number in one atomic transaction. Safe to call repeatedly:
- *  after checkout, and again on page load if the student closed the window mid-payment. */
+/** Asks PayU (not the browser) whether any of this student's orders has been paid, and if so issues the
+ *  registration + next ticket number in one transaction. Safe to call repeatedly: after checkout, and on every
+ *  page load — so a student whose connection dropped after paying gets their ticket the next time they log in.
+ *  All of the student's orders are checked in ONE PayU request: a paid order is never missed because a newer
+ *  attempt exists, and PayU's verify_payment rate limit isn't hit. Only the student's own orders count. */
 export default handler(async req => {
   const { uid } = await student(req)
-  if (db) {
-    const regRef = db.doc(`registrations/${uid}`)
-    const regSnap = await regRef.get()
-    if (regSnap.exists && regSnap.data()?.payment === 'paid') {
-      return { status: 'paid', ...regSnap.data() }
-    }
-  }
+  const regRef = db.doc(`registrations/${uid}`)
+  const reg = (await regRef.get()).data()
+  if (reg?.payment === 'paid') return { status: 'paid', ...reg }
 
-  // Check specific txnid if provided in request, else query all user orders
-  const specificTxnid = req.body?.txnid ? String(req.body.txnid).trim() : null
-  const orders = db ? await db.collection('orders').where('uid', '==', uid).get() : { docs: [] }
+  const orders = (await db.collection('orders').where('uid', '==', uid).get()).docs
+    .sort((a, b) => (b.data().createdAt?.toMillis?.() ?? 0) - (a.data().createdAt?.toMillis?.() ?? 0))
+    .slice(0, 25)   // ponytail: a student with more than 25 checkout attempts would need an organiser check
+  if (!orders.length) return { status: 'unpaid' }
 
-  // Sort orders with the requested txnid first, or most recent first
-  const sortedDocs = [...orders.docs].sort((a, b) => {
-    if (specificTxnid) {
-      if (a.id === specificTxnid || a.data().txnid === specificTxnid) return -1
-      if (b.id === specificTxnid || b.data().txnid === specificTxnid) return 1
-    }
-    return 0
-  })
-
-  // A normal page load only needs the latest order. Verifying every historical
-  // order can trigger PayU's verify_payment rate limit.
-  const candidates = specificTxnid
-    ? sortedDocs.filter(o => o.id === specificTxnid || o.data().txnid === specificTxnid)
-    : sortedDocs.slice(0, 1)
-
-  for (const o of candidates) {
+  const details = await verifyPayUPayment(orders.map(o => o.id))
+  for (const o of orders) {
+    const p = details[o.id]
+    if (!p || !['success', 'captured'].includes(String(p.status).toLowerCase())) continue
     const order = o.data()
-    const txnid = order.txnid || o.id
-
-    let details
-    try {
-      details = await verifyPayUPayment(txnid)
-    } catch (err) {
-      console.warn(`PayU verify_payment failed for txnid ${txnid}:`, err.message)
-      continue
-    }
-
-    if (!details) {
-      if (order.status === 'paid') {
-        details = { status: 'success', mode: 'UPI', amount: order.amount, txnid, mihpayid: order.paymentId || txnid }
-      } else {
-        continue
-      }
-    }
-    const status = String(details.status || '').toLowerCase()
-    if (status !== 'success' && status !== 'captured') continue
-
-    // Validate payment amount matches order
-    if (order.amount && Number(details.amount) !== Number(order.amount)) {
-      throw new HttpError(409, 'Payment amount does not match the order. Contact the organisers.')
-    }
-
-    if (db) await issue(uid, o.ref, order, details)
-    const freshReg = db ? (await db.doc(`registrations/${uid}`).get()).data() : {}
-    return {
-      status: 'paid',
-      paymentId: details.mihpayid || txnid,
-      mode: details.mode,
-      amount: details.amount,
-      txnid,
-      ...freshReg
-    }
+    if (Number(p.amt ?? p.amount) !== Number(order.amount)) throw new HttpError(409, 'Payment amount does not match the order. Contact the organisers.')
+    await issue(uid, o.ref, order, { ...p, amount: p.amt ?? p.amount })
+    return { status: 'paid', ...(await regRef.get()).data() }
   }
-
-  // Fallback: directly verify specificTxnid with PayU if db had no orders
-  if (specificTxnid) {
-    let details
-    try {
-      details = await verifyPayUPayment(specificTxnid)
-    } catch (err) {
-      console.warn(`PayU verify_payment failed for txnid ${specificTxnid}:`, err.message)
-    }
-    if (details) {
-      const status = String(details.status || '').toLowerCase()
-      if (status === 'success' || status === 'captured') {
-        if (db) {
-          const orderRef = db.doc(`orders/${specificTxnid}`)
-          const orderSnap = await orderRef.get()
-          const orderData = orderSnap.exists ? orderSnap.data() : { uid, txnid: specificTxnid, student: {} }
-          await issue(uid, orderSnap.exists ? orderRef : null, orderData, details)
-        }
-        const freshReg = db ? (await db.doc(`registrations/${uid}`).get()).data() : {}
-        return {
-          status: 'paid',
-          paymentId: details.mihpayid || specificTxnid,
-          mode: details.mode,
-          amount: details.amount,
-          txnid: specificTxnid,
-          ...freshReg
-        }
-      }
-    }
-  }
-
   return { status: 'unpaid' }
 })
 
@@ -165,7 +89,8 @@ export function issue(uid, orderRef, order, p) {
       method: PAYU_MODES[p.mode] || p.mode || 'UPI',
       methodDetail: p.bank_ref_num || p.bankcode || p.mode || '',
       payerEmail: p.email || s.email || '',
-      paidAt: p.addedon ? new Date(p.addedon) : null,
+      // PayU's addedon is Indian time with no zone ("2026-10-08 06:59:03"); servers run in UTC
+      paidAt: p.addedon ? new Date(String(p.addedon).replace(' ', 'T') + '+05:30') : FieldValue.serverTimestamp(),
       seq,
       regId: `CA${yy}-${String(seq).padStart(4, '0')}`,
       ticketId,

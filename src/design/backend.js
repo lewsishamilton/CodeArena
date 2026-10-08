@@ -279,7 +279,9 @@ export function errorMessage(e) {
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email') return 'Wrong ID or password.'
   if (code === 'auth/operation-not-allowed') return 'Login is not enabled yet. The organisers must turn on Email/Password sign-in in Firebase.'
   if (code === 'auth/email-already-in-use') return 'This roll number is already registered. Log in instead.'
-  if (code === 'auth/too-many-requests') return 'Too many attempts. Wait a minute and try again.'
+  // Firebase locks an account after repeated wrong passwords; the lock does not clear after a minute,
+  // and an organiser password reset unlocks it immediately.
+  if (code === 'auth/too-many-requests') return 'This login is temporarily locked after too many wrong passwords. Ask an organiser to reset your password (Admin → Participants), or try again later.'
   if (code === 'auth/network-request-failed' || code === 'unavailable') return 'Network problem. Check your connection and try again.'
   if (code === 'permission-denied' && !e.message) return 'You don\'t have access to this.'
   return e?.message?.replace(/^Firebase: /, '').replace(/ \(.*\)\.?$/, '') || 'Something went wrong. Please try again.'

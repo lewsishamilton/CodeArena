@@ -236,8 +236,11 @@ function logPayUResponse(txnid, response, body) {
   })
 }
 
-export async function verifyPayUPayment(txnid) {
+/** PayU status for one or more transaction ids, in a single verify_payment request.
+ *  Returns { [txnid]: transaction_details } (PayU reports the paid amount as "amt"). */
+export async function verifyPayUPayment(txnids) {
   if (!PAYU_KEY || !PAYU_SALT) throw new HttpError(503, 'PayU credentials (PAYU_KEY / PAYU_SALT) are not configured on the server.')
+  const txnid = [].concat(txnids).join('|')
   const existing = payuInFlight.get(txnid)
   if (existing) return existing
 
@@ -308,7 +311,7 @@ async function verifyPayUPaymentOnce(txnid) {
       }
       throw new HttpError(429, 'PayU reported a rate limit. Retry later.')
     }
-    return data.transaction_details?.[txnid] || null
+    return data.transaction_details || {}
   }
 }
 
