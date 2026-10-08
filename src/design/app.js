@@ -337,15 +337,18 @@ function applyConfig() {
   // Update register CTAs across landing page
   $$('a[href="/register"]').forEach(a => {
     if (!a.dataset.origText) a.dataset.origText = a.textContent.trim();
-    if (!open && !session.user) {
+    a.setAttribute('aria-disabled', String(!open));
+    if (!open) {
       a.textContent = full ? 'Registration Full · Seats Booked' : 'Registrations Closed';
       a.style.opacity = '0.75';
       a.style.filter = 'grayscale(0.5)';
+      a.style.cursor = 'not-allowed';
       a.title = full ? 'Event registration target reached. Registration is now closed.' : 'Registrations for this event are closed.';
     } else {
       a.textContent = a.dataset.origText;
       a.style.opacity = '';
       a.style.filter = '';
+      a.style.cursor = '';
       a.title = '';
     }
   });
@@ -354,6 +357,13 @@ function applyConfig() {
     loadMyResults(window.__currentStudent).then(res => renderMyResults(res, window.__currentStudent));
   }
 }
+
+/* Registration links do nothing while registration is full or closed (any link to /register, anywhere) */
+document.addEventListener('click', e => {
+  if (!e.target.closest?.('a[href="/register"]') || isRegistrationOpen()) return;
+  e.preventDefault();
+  toast(isCapacityReached() ? 'Registration is full — all seats are booked.' : 'Registrations are closed.', 'warn');
+}, true);
 
 function hydrateIcons(root = document) {
   $$('[data-icon]', root).forEach(el => { el.outerHTML = icon(el.dataset.icon); });
@@ -2456,6 +2466,11 @@ export async function boot() {
 
   if (PAGE === 'index' && session.user && !session.isAdmin && session.reg?.payment === 'paid') {
     location.replace('/dashboard' + (location.hash === '#rules' ? '#rules' : ''));
+    return;
+  }
+
+  if (PAGE === 'register' && !isRegistrationOpen() && session.reg?.payment !== 'paid' && !new URLSearchParams(location.search).has('payment')) {
+    location.replace('/');
     return;
   }
 
