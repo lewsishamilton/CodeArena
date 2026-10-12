@@ -761,9 +761,11 @@ function initRegister() {
     if (roll.length !== 10) return setEmpty('Awaiting Roll Number', 'Enter your 10-character roll number (e.g. 25R21A05LL).');
     const seq = ++lookupSeq;
     setEmpty('Searching details…', `Looking up ${roll} in the college records…`);
+    // No details after 6 s: open the manual form right away. The lookup keeps going; if the real
+    // details arrive later they replace the form (renderStudent hides it).
     const serverWarmupTimer = setTimeout(() => {
-      if (seq === lookupSeq) setEmpty('Still searching…', 'The college records server is slow right now. Please wait a few seconds…');
-    }, 5000);
+      if (seq === lookupSeq) setEmpty(`Enter details for ${roll}`, 'The college records server is slow right now. Enter your details below — or wait, they will fill in automatically if the server answers.', { manual: true });
+    }, 6000);
 
     try {
       const s = await lookupStudent(roll);

@@ -368,7 +368,7 @@ const STUDENT_API = 'https://tqmokxybyb4wz7xsyuojl7otmq0bsudh.lambda-url.ap-sout
 const RECORDS_DOWN = 'The college records server is not responding. Enter your details below to continue.'
 async function fetchStudent(roll) {
   let res
-  try { res = await fetch(STUDENT_API + encodeURIComponent(roll), { signal: AbortSignal.timeout(20_000) }) }
+  try { res = await fetch(STUDENT_API + encodeURIComponent(roll), { signal: AbortSignal.timeout(8_000) }) }
   catch { throw new HttpError(503, RECORDS_DOWN) }
   if (res.status === 401 || res.status === 404) throw new HttpError(404, 'No student found with this roll number. Check it and try again.')
   if (!res.ok) throw new HttpError(503, RECORDS_DOWN)
