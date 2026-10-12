@@ -76,6 +76,7 @@ export function issue(uid, orderRef, order, p) {
       dept: s.branch || s.dept || '',
       year: s.year || '',
       email: s.email || '',
+      detailsSource: s.manual ? 'typed by student (records server was down)' : 'college records',
       college: s.college || cfg.data()?.college || '',
       phone: p.phone ? String(p.phone).replace(/^\+91/, '') : (s.phone || ''),
       payment: 'paid',

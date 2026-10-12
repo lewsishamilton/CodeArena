@@ -406,6 +406,20 @@
           <small style="color:var(--muted)" id="student-empty-msg">Enter your roll number above to display your Name, Course, Branch, and Gmail.</small>
         </div>
 
+        <!-- Manual details, shown only when the college records server is down -->
+        <form id="manual-entry" class="card card-pad" hidden novalidate style="margin-top:16px">
+          <p style="font-weight:600;color:var(--text)">Enter your details</p>
+          <p class="muted" style="font-size:13px;margin-top:4px">Fill these in exactly as on your college ID card — the organisers check them at the venue.</p>
+          <div class="form-grid" style="margin-top:14px">
+            <div class="field span-2"><label for="m-name">Full name</label><input class="input" id="m-name" name="name" required maxlength="60" autocomplete="name"></div>
+            <div class="field"><label for="m-course">Course</label><select class="select" id="m-course" name="course"><option>B.Tech</option><option>M.Tech</option><option>MBA</option><option>MCA</option></select></div>
+            <div class="field"><label for="m-year">Year</label><select class="select" id="m-year" name="year"><option value="1">1st year</option><option value="2">2nd year</option><option value="3">3rd year</option><option value="4">4th year</option></select></div>
+            <div class="field"><label for="m-branch">Branch</label><input class="input" id="m-branch" name="branch" required maxlength="40" placeholder="e.g. CSE"></div>
+            <div class="field"><label for="m-email">Email</label><input class="input" id="m-email" name="email" type="email" required maxlength="80" autocomplete="email"></div>
+          </div>
+          <button class="btn btn-primary" type="submit" style="margin-top:14px">Continue with these details</button>
+        </form>
+
         <!-- Student profile card (revealed when roll number is entered) -->
         <div id="student-card" class="student-profile-card" hidden>
           <div class="student-profile-head">

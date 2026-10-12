@@ -325,22 +325,53 @@ export const normRoll = v => String(v ?? '').trim().toUpperCase()
 
 /** College records change rarely; the API sleeps when idle (30–60 s to wake). Each registration needs the
  *  details three times (lookup, account, order), so keep them in Firestore and only call the API on a miss. */
-const STUDENT_CACHE_MS = 7 * 24 * 3600 * 1000
-async function cachedStudent(roll) {
-  const ref = db?.doc(`studentCache/${roll}`)
-  const hit = ref && (await ref.get().catch(() => null))?.data()
-  if (hit && Date.now() - hit.fetchedAt < STUDENT_CACHE_MS) return hit.student
-  const student = await fetchStudent(roll)
-  ref?.set({ student, fetchedAt: Date.now() }).catch(() => {})
-  return student
+/** Details typed in by the student while the records server is down (validated; never trusted over real records). */
+const COURSE_NAMES = ['B.Tech', 'M.Tech', 'MBA', 'MCA']
+function manualStudent(roll, m = {}) {
+  const s = {
+    roll, name: titleCase(String(m.name || '').trim().replace(/\s+/g, ' ')), course: String(m.course || '').trim(),
+    branch: String(m.branch || '').trim().toUpperCase(), year: String(m.year || '').trim(),
+    email: String(m.email || '').trim().toLowerCase(), manual: true
+  }
+  if (!/^[A-Za-z][A-Za-z .'-]{1,59}$/.test(s.name)) throw new HttpError(400, 'Enter your full name (letters only).')
+  if (!COURSE_NAMES.includes(s.course)) throw new HttpError(400, 'Choose your course.')
+  if (!/^[A-Z0-9 &().-]{2,40}$/.test(s.branch)) throw new HttpError(400, 'Enter your branch (e.g. CSE).')
+  if (!/^[1-4]$/.test(s.year)) throw new HttpError(400, 'Choose your year.')
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(s.email)) throw new HttpError(400, 'Enter a valid email address.')
+  return s
 }
 
+/** Student details are fetched from the college records ONCE and kept in Firestore (studentCache/{roll}); every
+ *  later step (lookup, account, order) reads the stored copy. If the records server is down, details the student
+ *  typed in are stored as "manual" — used only until the real record can be fetched, which then replaces them. */
+async function cachedStudent(roll, manual) {
+  const ref = db?.doc(`studentCache/${roll}`)
+  const hit = ref && (await ref.get().catch(() => null))?.data()
+  if (hit && !hit.manual) return hit.student
+  try {
+    const student = await fetchStudent(roll)
+    ref?.set({ student, fetchedAt: Date.now() }).catch(() => {})
+    return student
+  } catch (e) {
+    if (e.status !== 503) throw e                    // a real "not found" is never overridden
+    if (manual) {
+      const student = manualStudent(roll, manual)
+      await ref?.set({ student, manual: true, fetchedAt: Date.now() })
+      return student
+    }
+    if (hit?.manual) return hit.student
+    throw e
+  }
+}
+
+const STUDENT_API = 'https://tqmokxybyb4wz7xsyuojl7otmq0bsudh.lambda-url.ap-south-1.on.aws/student/'
+const RECORDS_DOWN = 'The college records server is not responding. Enter your details below to continue.'
 async function fetchStudent(roll) {
   let res
-  try { res = await fetch('https://mlrit-api.onrender.com/student/' + encodeURIComponent(roll), { signal: AbortSignal.timeout(55_000) }) }
-  catch { throw new HttpError(503, 'The college student service is waking up. Try again in a minute.') }
+  try { res = await fetch(STUDENT_API + encodeURIComponent(roll), { signal: AbortSignal.timeout(20_000) }) }
+  catch { throw new HttpError(503, RECORDS_DOWN) }
   if (res.status === 401 || res.status === 404) throw new HttpError(404, 'No student found with this roll number. Check it and try again.')
-  if (!res.ok) throw new HttpError(503, 'The college student service is not responding. Try again in a minute.')
+  if (!res.ok) throw new HttpError(503, RECORDS_DOWN)
   const d = await res.json()
   if (!d.success || !d.name) throw new HttpError(404, 'No student found with this roll number. Check it and try again.')
   return {
@@ -350,10 +381,10 @@ async function fetchStudent(roll) {
 }
 
 /** Eligibility + seat checks before showing details or taking money. */
-export async function checkCanRegister(roll, { allowExisting = false } = {}) {
+export async function checkCanRegister(roll, { allowExisting = false, manual } = {}) {
   if (!/^[A-Z0-9]{10}$/.test(roll)) throw new HttpError(400, 'Enter a valid 10-character roll number.')
   // Everything at once: the student lookup is the slow part, the database reads overlap with it
-  const studentP = cachedStudent(roll)
+  const studentP = cachedStudent(roll, manual)
   studentP.catch(() => {})   // handled below; avoids an unhandled rejection if a check throws first
   const [taken, cfgDoc, statsDoc] = db
     ? await Promise.all([

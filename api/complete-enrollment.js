@@ -24,6 +24,13 @@ export default handler(async req => {
     if (registration.exists && registration.data()?.payment === 'paid') {
       throw new HttpError(409, 'This roll number is already registered. Log in instead.')
     }
+    // Only an account that never reached checkout may be reused. Otherwise anyone who knows a roll number could
+    // set a new password on it — and if that student had paid but the ticket wasn't issued yet (network drop),
+    // take over the account and the ticket.
+    const startedCheckout = !(await db.collection('orders').where('uid', '==', existing.uid).limit(1).get()).empty
+    if (startedCheckout) {
+      throw new HttpError(409, 'This roll number has already started registration. Log in with your password (your ticket appears automatically if you paid), or ask an organiser to reset your password.')
+    }
     user = await getAuth().updateUser(existing.uid, {
       password,
       displayName: student.name

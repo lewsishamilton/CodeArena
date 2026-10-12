@@ -182,42 +182,11 @@ async function api(path, data = {}) {
   return d
 }
 
-const COURSES = { A: 'B.Tech', D: 'M.Tech', E: 'MBA', F: 'MCA' }
-const ROMAN = { I: '1', II: '2', III: '3', IV: '4' }
-const titleCase = s => String(s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 
-/** Student details from the college records (fetched via /api/lookup on server, with direct fallback). */
-export async function lookupStudent(roll) {
-  const norm = String(roll || '').trim().toUpperCase()
-  try {
-    const s = await api('lookup', { roll: norm })
-    if (s && s.name) return s
-  } catch (err) {
-    console.warn('/api/lookup unavailable, using direct student API fallback:', err.message)
-  }
-
-  // Direct fetch from student records API
-  let res
-  try {
-    res = await fetch('https://mlrit-api.onrender.com/student/' + encodeURIComponent(norm))
-  } catch (_) {
-    throw new Error('The college student service is waking up. Try again in a minute.')
-  }
-  if (res.status === 401 || res.status === 404) throw new Error('No student found with this roll number. Check it and try again.')
-  if (!res.ok) throw new Error('The college student service is not responding. Try again in a minute.')
-  const d = await res.json().catch(() => ({}))
-  if (!d.success || !d.name) throw new Error('No student found with this roll number. Check it and try again.')
-
-  const parsed = {
-    roll: String(d.roll_no || norm).trim().toUpperCase(),
-    name: titleCase(String(d.name).trim()),
-    course: COURSES[norm[5]] || 'B.Tech',
-    branch: String(d.branch || ''),
-    year: ROMAN[String(d.semester || '').split('/')[0].trim()] || '1',
-    email: String(d.student_email || '')
-  }
-  return parsed
-}
+/** Student details (fetched once on the server from the college records, then stored). `manual` = details the
+ *  student typed in while the records server was down. Never call the college API from the browser: it returns
+ *  private data (date of birth, parents, caste, photo) that must not reach the page. */
+export const lookupStudent = (roll, manual) => api('lookup', { roll: String(roll || '').trim().toUpperCase(), ...(manual && { manual }) })
 
 /** Asks the server to check PayU for this student's payment and issue the ticket. Returns the registration or null. */
 export async function confirmPayment(txnid, orderContext) {

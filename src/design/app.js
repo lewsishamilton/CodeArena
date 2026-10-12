@@ -662,9 +662,6 @@ function renderHeroPanel() {
    PAGE: REGISTRATION — roll lookup → create password → PayU → ticket
    ========================================================================= */
 function initRegister() {
-  // The college records API sleeps when idle and takes 30–60 s to wake: start waking it now,
-  // while the student is still typing their roll number.
-  fetch('https://mlrit-api.onrender.com/', { mode: 'no-cors' }).catch(() => {});
   const go = step => {
     $$('[data-step]').forEach(p => p.hidden = Number(p.dataset.step) !== step);
     $$('.stepper li').forEach((li, i) => {
@@ -721,7 +718,9 @@ function initRegister() {
   pass2Input?.addEventListener('input', checkStep1Validity);
   agreeInput?.addEventListener('change', checkStep1Validity);
 
-  function setEmpty(title, msg) {
+  const manualForm = $('#manual-entry');
+  function setEmpty(title, msg, { manual = false } = {}) {
+    if (manualForm) manualForm.hidden = !manual;
     student = null;
     card.hidden = true; empty.hidden = false;
     $('#student-empty-title').textContent = title;
@@ -730,6 +729,7 @@ function initRegister() {
     checkStep1Validity();
   }
   function renderStudent(s) {
+    if (manualForm) manualForm.hidden = true;
     student = s;
     empty.hidden = true; card.hidden = false;
     const courseText = s.branch && !s.course.includes(s.branch) ? `${s.course} (${s.branch})` : s.course;
@@ -760,25 +760,14 @@ function initRegister() {
     if (roll.length < 4) return setEmpty('Awaiting Roll Number', 'Enter your roll number to display your Name, Course, Branch, and Gmail.');
     if (roll.length !== 10) return setEmpty('Awaiting Roll Number', 'Enter your 10-character roll number (e.g. 25R21A05LL).');
     const seq = ++lookupSeq;
-    setEmpty('Searching details…', `Contacting student records server… Searching details for ${roll}…`);
-
-    // If server takes time to respond (e.g. Render server waking up from sleep)
+    setEmpty('Searching details…', `Looking up ${roll} in the college records…`);
     const serverWarmupTimer = setTimeout(() => {
-      if (seq === lookupSeq) {
-        setEmpty('Waking up server…', 'The server is waking up. Please wait a few seconds, details are searching…');
-      }
-    }, 2500);
-
-    const serverWarmupTimer2 = setTimeout(() => {
-      if (seq === lookupSeq) {
-        setEmpty('Still searching…', 'Server is warming up, please wait a few seconds while details are being retrieved…');
-      }
-    }, 7000);
+      if (seq === lookupSeq) setEmpty('Still searching…', 'The college records server is slow right now. Please wait a few seconds…');
+    }, 5000);
 
     try {
       const s = await lookupStudent(roll);
       clearTimeout(serverWarmupTimer);
-      clearTimeout(serverWarmupTimer2);
       if (seq === lookupSeq) {
         renderStudent(s);
         if (s.alreadyRegistered) {
@@ -793,10 +782,25 @@ function initRegister() {
       }
     } catch (e) {
       clearTimeout(serverWarmupTimer);
-      clearTimeout(serverWarmupTimer2);
-      if (seq === lookupSeq) setEmpty('Not available', e.message || errorMessage(e));
+      if (seq !== lookupSeq) return;
+      // Records server down: let the student type their details (roll number stays visible)
+      if (e.code === 'server 503') setEmpty(`Enter details for ${roll}`, e.message, { manual: true });
+      else setEmpty('Not available', e.message || errorMessage(e));
     }
   }
+  manualForm?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const roll = rollInput.value.trim().toUpperCase();
+    const f = Object.fromEntries(new FormData(manualForm));
+    const btn = $('button[type=submit]', manualForm);
+    btn.disabled = true;
+    try {
+      const s = await lookupStudent(roll, f);
+      renderStudent(s);
+      if (s.alreadyRegistered) { nextBtn.disabled = true; toast('This roll number is already registered. Use student login.', 'warn'); }
+    } catch (err) { toast(err.message || errorMessage(err), 'error'); }
+    btn.disabled = false;
+  });
   rollInput.addEventListener('input', () => {
     rollInput.value = rollInput.value.toUpperCase();
     clearTimeout(timer); timer = setTimeout(lookup, 500);
