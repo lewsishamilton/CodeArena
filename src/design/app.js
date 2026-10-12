@@ -3,7 +3,7 @@
    All event data comes from Firebase (backend.js): settings, registrations,
    problems, submissions, scores and announcements. Nothing is hardcoded.
    ========================================================================= */
-import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage, authHeaders, uploadCertificateTemplate, resetParticipantPassword } from './backend.js';
+import { configured, db, fs, call, session, ready, getRegistration, login, loginAdmin, logout, createAccount, lookupStudent, confirmPayment, payWithPayU, getData, getAll, watchAll, watchDoc, ms, errorMessage, authHeaders, uploadCertificateTemplate, resetParticipantPassword, reconcilePayments } from './backend.js';
 import QRCode from 'qrcode';
 
 /* ---------- Event state — loaded from Firestore config/* (Admin → Settings / Competition control) ---------- */
@@ -951,6 +951,26 @@ function initRegister() {
     $$('[data-signout]').forEach(b => b.onclick = signOut);
   }
 
+  /** Paid but the page lost its connection (stuck on PayU, or the return didn't reach us)? Keep asking our server,
+   *  which asks PayU, until the ticket is issued: right away, whenever the internet comes back, and every 20 s
+   *  for 15 minutes if this browser started a checkout. Shows the ticket the moment it's confirmed. */
+  function watchForPayment() {
+    let tries = 0, timer = null;
+    const done = r => {
+      if (!r) return;
+      clearInterval(timer); removeEventListener('online', check);
+      try { sessionStorage.removeItem('codearena_pending_checkout'); } catch (_) {}
+      PAID++; applyConfig(); showSuccess(r); go(3);
+      toast(`Payment confirmed! Ticket ${r.ticketId || 'issued'} generated.`);
+    };
+    const check = () => { if (navigator.onLine !== false) confirmPayment().then(done).catch(() => {}); };
+    check();
+    addEventListener('online', check);
+    let started = false;
+    try { started = !!sessionStorage.getItem('codearena_pending_checkout'); } catch (_) {}
+    if (started) timer = setInterval(() => { if (++tries > 45) return clearInterval(timer); if (!document.hidden) check(); }, 20000);
+  }
+
   const reg = session.reg;
   if (reg?.payment === 'paid' || reg?.paid) {
     showSuccess(reg, true);
@@ -996,9 +1016,10 @@ function initRegister() {
           go(3);
           window.history.replaceState({}, '', window.location.pathname);
         } else {
-          $('#pay-fail-msg').textContent = 'Your payment was received but is still being verified. Please refresh this page in a moment.';
+          $('#pay-fail-msg').textContent = 'Your payment is being confirmed with PayU. Keep this page open — your ticket appears here automatically (no need to pay again).';
           payView('failed');
           go(2);
+          watchForPayment();
         }
       })();
       return;
@@ -1013,9 +1034,7 @@ function initRegister() {
     }
 
     go(1);
-    if (session.user) {
-      confirmPayment().then(r => { if (r) { showSuccess(r); go(3); } }).catch(() => {});
-    }
+    if (session.user) watchForPayment();
     if (!isRegistrationOpen()) {
       const full = isCapacityReached();
       setEmpty(
@@ -1823,6 +1842,19 @@ function initAdmin() {
      PAYMENTS
      ======================================================================= */
   let payFilter = '';
+  $('#reconcile-btn')?.addEventListener('click', async e => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      const r = await reconcilePayments();
+      const msg = r.issued.length ? `Issued ${r.issued.length} missing ticket(s): ${r.issued.join(', ')}` : `Checked ${r.checked} unfinished checkout(s) — nothing missing.`;
+      toast(msg, r.issued.length ? 'success' : 'info');
+      if (r.paidTwice.length) modal({
+        title: 'Students who paid twice', confirm: null, cancel: 'Close',
+        body: `<p>These payments succeeded after the student already had a ticket. Refund them from the PayU dashboard.</p><ul style="margin-top:10px">${r.paidTwice.map(d => `<li>${esc(d.roll)} — ₹${esc(d.amount)} · PayU ID ${esc(d.payuId)} · order ${esc(d.txnid)}</li>`).join('')}</ul>`
+      });
+    } catch (err) { toast(errorMessage(err), 'error'); }
+    btn.disabled = false;
+  });
   $$('#pay-filter button').forEach(b => b.onclick = () => {
     payFilter = b.dataset.f;
     $$('#pay-filter button').forEach(x => x.classList.toggle('active', x === b));

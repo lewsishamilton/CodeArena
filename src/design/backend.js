@@ -152,6 +152,9 @@ export async function logout() {
   await setUser(null)
 }
 
+/** Organiser: check every unfinished checkout with PayU and issue missing tickets. */
+export const reconcilePayments = () => api('reconcile-payments')
+
 export async function resetParticipantPassword(uid, password) {
   return api('admin-reset-password', { uid, password })
 }

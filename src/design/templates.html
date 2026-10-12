@@ -1127,7 +1127,8 @@
 
     <!-- PAYMENTS -->
     <section class="view" data-view="payments" hidden>
-      <div class="view-head"><div><h2>Payments</h2><p>Payments (demo mode for now). If a student paid offline, mark their registration as paid here.</p></div>
+      <div class="view-head"><div><h2>Payments</h2><p>PayU payments. If a student paid but has no ticket (network dropped after paying), use “Check pending payments”.</p>
+          <button class="btn btn-secondary btn-sm" id="reconcile-btn" style="margin-top:10px"><i data-icon="refresh"></i> Check pending payments with PayU</button></div>
         <div class="seg" id="pay-filter" role="group" aria-label="Filter payments"><button class="active" data-f="">All</button><button data-f="paid">Paid</button><button data-f="pending">Pending</button></div></div>
       <div class="grid g-3" id="pay-kpis"></div>
       <div class="card mt"><div class="table-wrap"><table class="table">
